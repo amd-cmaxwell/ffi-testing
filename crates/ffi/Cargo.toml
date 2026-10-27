@@ -1,0 +1,7 @@
+[package]
+name = "boltffi-testing-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+boltffi-testing-core = { path = "../core" }

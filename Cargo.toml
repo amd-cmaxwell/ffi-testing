@@ -1,0 +1,11 @@
+[workspace]
+members = [
+    "crates/core",
+    "crates/complex",
+    "crates/polynomials",
+    "crates/linear-algebra",
+    "crates/trig",
+    "crates/sequences",
+    "crates/ffi",
+]
+resolver = "2"
