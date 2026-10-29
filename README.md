@@ -60,7 +60,7 @@ uniffi-testing-ffi-python
 ### Go
 
 ```bash
-go install github.com/amd-cmaxwell/ffi-testing/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
+GOPROXY=direct go install github.com/amd-cmaxwell/ffi-testing/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
 uniffi-testing-ffi-go
 ```
 
