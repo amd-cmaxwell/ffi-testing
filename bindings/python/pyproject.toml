@@ -9,7 +9,7 @@ description = "Python bindings for the uniffi-testing math library"
 requires-python = ">=3.8"
 
 [project.scripts]
-uniffi-testing-ffi = "uniffi_testing_ffi.__main__:main"
+uniffi-testing-ffi-python = "uniffi_testing_ffi.__main__:main"
 
 [tool.maturin]
 bindings = "uniffi"
