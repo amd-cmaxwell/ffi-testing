@@ -3,47 +3,47 @@
 version = 4
 
 [[package]]
-name = "boltffi-testing-complex"
+name = "uniffi-testing-complex"
 version = "0.1.0"
 dependencies = [
- "boltffi-testing-core",
+ "uniffi-testing-core",
 ]
 
 [[package]]
-name = "boltffi-testing-core"
+name = "uniffi-testing-core"
 version = "0.1.0"
 
 [[package]]
-name = "boltffi-testing-ffi"
+name = "uniffi-testing-ffi"
 version = "0.1.0"
 dependencies = [
- "boltffi-testing-core",
+ "uniffi-testing-core",
 ]
 
 [[package]]
-name = "boltffi-testing-linear-algebra"
+name = "uniffi-testing-linear-algebra"
 version = "0.1.0"
 dependencies = [
- "boltffi-testing-core",
+ "uniffi-testing-core",
 ]
 
 [[package]]
-name = "boltffi-testing-polynomials"
+name = "uniffi-testing-polynomials"
 version = "0.1.0"
 dependencies = [
- "boltffi-testing-core",
+ "uniffi-testing-core",
 ]
 
 [[package]]
-name = "boltffi-testing-sequences"
+name = "uniffi-testing-sequences"
 version = "0.1.0"
 dependencies = [
- "boltffi-testing-core",
+ "uniffi-testing-core",
 ]
 
 [[package]]
-name = "boltffi-testing-trig"
+name = "uniffi-testing-trig"
 version = "0.1.0"
 dependencies = [
- "boltffi-testing-core",
+ "uniffi-testing-core",
 ]

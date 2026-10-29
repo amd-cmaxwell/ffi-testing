@@ -1,4 +1,4 @@
-use boltffi_testing_core as core;
+use uniffi_testing_core as core;
 use std::f64::consts::PI;
 
 pub fn degrees_to_radians(deg: f64) -> f64 {

@@ -1,7 +1,7 @@
 [package]
-name = "boltffi-testing-polynomials"
+name = "uniffi-testing-polynomials"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-boltffi-testing-core = { path = "../core" }
+uniffi-testing-core = { path = "../core" }

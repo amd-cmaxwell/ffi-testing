@@ -1,4 +1,4 @@
 [package]
-name = "boltffi-testing-core"
+name = "uniffi-testing-core"
 version = "0.1.0"
 edition = "2021"

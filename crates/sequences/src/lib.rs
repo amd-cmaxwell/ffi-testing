@@ -1,4 +1,4 @@
-use boltffi_testing_core as core;
+use uniffi_testing_core as core;
 
 pub fn arithmetic_term(a1: f64, d: f64, n: u64) -> f64 {
     a1 + (n as f64 - 1.0) * d
