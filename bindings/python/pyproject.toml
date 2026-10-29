@@ -11,4 +11,5 @@ requires-python = ">=3.8"
 [tool.maturin]
 bindings = "uniffi"
 manifest-path = "../../crates/ffi/Cargo.toml"
-module-name = "uniffi_testing_ffi"
+module-name = "uniffi_testing_ffi._bindings"
+python-source = "lib"

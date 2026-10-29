@@ -1,34 +1,29 @@
 #!/usr/bin/env python3
 """Demo script exercising all UniFFI-generated Python bindings."""
 
-from uniffi_testing_ffi import (
-    # Core
-    add,
-    # Complex
-    Complex, ComplexPair, complex_new, complex_from_polar,
-    complex_magnitude, complex_argument, complex_conjugate,
-    complex_add, complex_sub, complex_mul, complex_div,
-    complex_display, quadratic_roots_complex,
-    # Polynomials
+from uniffi_testing_ffi import MathError
+from uniffi_testing_ffi.core import add
+from uniffi_testing_ffi.complex import (
+    complex_new, complex_magnitude, complex_argument, complex_conjugate,
+    complex_add, complex_mul, complex_display, quadratic_roots_complex,
+)
+from uniffi_testing_ffi.polynomials import (
     polynomial_evaluate, quadratic_roots, linear_root,
-    polynomial_add, polynomial_multiply, polynomial_derivative,
-    F64Pair,
-    # Linear algebra
-    Matrix2x2, Matrix3x3, Point2, Point3,
-    determinant_2x2, determinant_3x3, solve_2x2, solve_3x3,
-    matrix_multiply_2x2, matrix_inverse_2x2, transpose_2x2,
-    dot_product, cross_product_3d,
-    # Trig
+    polynomial_multiply, polynomial_derivative,
+)
+from uniffi_testing_ffi.linear_algebra import (
+    Matrix2x2, Point2, Point3,
+    determinant_2x2, solve_2x2, dot_product, cross_product_3d,
+)
+from uniffi_testing_ffi.trig import (
     degrees_to_radians, radians_to_degrees,
-    law_of_cosines_side, law_of_cosines_angle, law_of_sines_side,
-    distance_2d, distance_3d, midpoint_2d,
-    triangle_area_heron, circle_area, circle_circumference,
-    # Sequences
-    arithmetic_term, arithmetic_sum, geometric_term, geometric_sum,
-    geometric_sum_infinite, factorial, permutations, combinations,
+    distance_2d, midpoint_2d, triangle_area_heron, circle_area,
+    law_of_cosines_angle,
+)
+from uniffi_testing_ffi.sequences import (
+    arithmetic_sum, geometric_sum_infinite,
+    factorial, permutations, combinations,
     gcd, lcm, fibonacci, is_prime,
-    # Error
-    MathError,
 )
 
 

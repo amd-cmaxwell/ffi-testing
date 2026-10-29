@@ -6,7 +6,13 @@ build:
 test:
 	cargo test --workspace
 
-generate-python: build
+generate-python-modules: build
+	cargo run --release --bin uniffi-bindgen -- generate \
+		--library target/release/libuniffi_testing_ffi.so \
+		--language python --out-dir /tmp/uniffi-python-gen
+	python3 bindings/python/scripts/generate_modules.py /tmp/uniffi-python-gen/uniffi_testing_ffi.py
+
+generate-python: build generate-python-modules
 	cd bindings/python && maturin develop --release
 
 generate-go: build
