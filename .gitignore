@@ -8,5 +8,8 @@ __pycache__/
 *.whl
 .eggs/
 
+# Avoid committing the library binary to allow maturin to build it during the pip install
+bindings/python/lib/uniffi_testing_ffi/_bindings/libuniffi_testing_ffi.so
+
 # Old boltffi dist
 /dist/
