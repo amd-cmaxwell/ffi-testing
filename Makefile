@@ -21,6 +21,7 @@ generate-go: build
 	cp /tmp/uniffi-go-gen/uniffi_testing_ffi/uniffi_testing_ffi.h bindings/go/uniffi_testing_ffi/
 	cp target/release/libuniffi_testing_ffi.a bindings/go/uniffi_testing_ffi/
 	sed -i 's|// #include <uniffi_testing_ffi.h>|// #cgo LDFLAGS: -L$${SRCDIR} -luniffi_testing_ffi -lm -ldl -lpthread\n// #include <uniffi_testing_ffi.h>|' bindings/go/uniffi_testing_ffi/uniffi_testing_ffi.go
+	python3 bindings/go/scripts/generate_modules.py bindings/go/uniffi_testing_ffi/uniffi_testing_ffi.go
 
 generate-all: generate-python generate-go
 
