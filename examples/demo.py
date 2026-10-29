@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+"""Demo script exercising all UniFFI-generated Python bindings."""
+import sys
+import os
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "bindings", "python"))
+
+from uniffi_testing_ffi import (
+    # Core
+    add,
+    # Complex
+    Complex, ComplexPair, complex_new, complex_from_polar,
+    complex_magnitude, complex_argument, complex_conjugate,
+    complex_add, complex_sub, complex_mul, complex_div,
+    complex_display, quadratic_roots_complex,
+    # Polynomials
+    polynomial_evaluate, quadratic_roots, linear_root,
+    polynomial_add, polynomial_multiply, polynomial_derivative,
+    F64Pair,
+    # Linear algebra
+    Matrix2x2, Matrix3x3, Point2, Point3,
+    determinant_2x2, determinant_3x3, solve_2x2, solve_3x3,
+    matrix_multiply_2x2, matrix_inverse_2x2, transpose_2x2,
+    dot_product, cross_product_3d,
+    # Trig
+    degrees_to_radians, radians_to_degrees,
+    law_of_cosines_side, law_of_cosines_angle, law_of_sines_side,
+    distance_2d, distance_3d, midpoint_2d,
+    triangle_area_heron, circle_area, circle_circumference,
+    # Sequences
+    arithmetic_term, arithmetic_sum, geometric_term, geometric_sum,
+    geometric_sum_infinite, factorial, permutations, combinations,
+    gcd, lcm, fibonacci, is_prime,
+    # Error
+    MathError,
+)
+
+
+def main():
+    print("=== Core ===")
+    print(f"add(2, 3) = {add(2, 3)}")
+
+    print("\n=== Complex Numbers ===")
+    z = complex_new(3.0, 4.0)
+    print(f"z = {complex_display(z)}")
+    print(f"  |z| = {complex_magnitude(z)}")
+    print(f"  arg(z) = {complex_argument(z):.4f}")
+    print(f"  conj(z) = {complex_display(complex_conjugate(z))}")
+
+    w = complex_new(1.0, 2.0)
+    print(f"w = {complex_display(w)}")
+    print(f"  z + w = {complex_display(complex_add(z, w))}")
+    print(f"  z * w = {complex_display(complex_mul(z, w))}")
+
+    pair = quadratic_roots_complex(1.0, 0.0, 1.0)
+    print(f"x^2 + 1 = 0: {complex_display(pair.first)}, {complex_display(pair.second)}")
+
+    print("\n=== Polynomials ===")
+    roots = quadratic_roots(1.0, -5.0, 6.0)
+    print(f"x^2 - 5x + 6 = 0: x = {roots.first}, {roots.second}")
+    print(f"eval x^2 - 3x + 2 at x=1: {polynomial_evaluate([1.0, -3.0, 2.0], 1.0)}")
+    print(f"linear_root(2x + 4 = 0): x = {linear_root(2.0, 4.0)}")
+    print(f"(x+1)(x-1) = {polynomial_multiply([1.0, 1.0], [1.0, -1.0])}")
+    print(f"d/dx(3x^2 + 2x + 1) = {polynomial_derivative([3.0, 2.0, 1.0])}")
+
+    print("\n=== Linear Algebra ===")
+    m = Matrix2x2(m00=2.0, m01=3.0, m10=1.0, m11=4.0)
+    print(f"det([[2,3],[1,4]]) = {determinant_2x2(m)}")
+
+    sol = solve_2x2(
+        Matrix2x2(m00=1.0, m01=1.0, m10=2.0, m11=-1.0),
+        Point2(x=3.0, y=0.0),
+    )
+    print(f"solve x+y=3, 2x-y=0: x={sol.x}, y={sol.y}")
+
+    dp = dot_product([1.0, 2.0, 3.0], [4.0, 5.0, 6.0])
+    print(f"dot([1,2,3], [4,5,6]) = {dp}")
+
+    cp = cross_product_3d(Point3(x=1.0, y=0.0, z=0.0), Point3(x=0.0, y=1.0, z=0.0))
+    print(f"cross(i, j) = ({cp.x}, {cp.y}, {cp.z})")
+
+    print("\n=== Trigonometry ===")
+    print(f"90 deg = {degrees_to_radians(90.0):.4f} rad")
+    print(f"pi rad = {radians_to_degrees(3.14159265358979):.1f} deg")
+    print(f"distance (0,0)-(3,4) = {distance_2d(0.0, 0.0, 3.0, 4.0)}")
+    mid = midpoint_2d(0.0, 0.0, 4.0, 6.0)
+    print(f"midpoint (0,0)-(4,6) = ({mid.x}, {mid.y})")
+    print(f"Heron area 3-4-5 = {triangle_area_heron(3.0, 4.0, 5.0)}")
+    print(f"circle area r=3 = {circle_area(3.0):.4f}")
+
+    print("\n=== Sequences & Number Theory ===")
+    print(f"10! = {factorial(10)}")
+    print(f"C(10,3) = {combinations(10, 3)}")
+    print(f"P(5,2) = {permutations(5, 2)}")
+    print(f"fib(20) = {fibonacci(20)}")
+    print(f"gcd(48, 18) = {gcd(48, 18)}")
+    print(f"lcm(4, 6) = {lcm(4, 6)}")
+    print(f"is_prime(97) = {is_prime(97)}")
+    print(f"arithmetic sum 1..100 = {arithmetic_sum(1.0, 1.0, 100)}")
+    print(f"geometric sum infinite a=1, r=0.5 = {geometric_sum_infinite(1.0, 0.5)}")
+
+    print("\n=== Error Handling ===")
+    try:
+        quadratic_roots(0.0, 1.0, 2.0)
+    except MathError.DivisionByZero:
+        print("Caught MathError.DivisionByZero!")
+
+    try:
+        quadratic_roots(1.0, 0.0, 1.0)
+    except MathError.NoRealSolution:
+        print("Caught MathError.NoRealSolution!")
+
+    try:
+        factorial(21)
+    except MathError.Overflow:
+        print("Caught MathError.Overflow!")
+
+    try:
+        law_of_cosines_angle(-1.0, 2.0, 3.0)
+    except MathError.InvalidInput as e:
+        print(f"Caught MathError.InvalidInput: {e}")
+
+    print("\nAll demos passed!")
+
+
+if __name__ == "__main__":
+    main()
