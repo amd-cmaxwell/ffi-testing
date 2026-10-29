@@ -16,7 +16,7 @@ A Rust workspace with six domain crates (core, complex, polynomials, linear-alge
 - **Python packaging with maturin** — maturin builds Rust, runs uniffi-bindgen, and produces a wheel in one step
 - **Python submodules over a flat namespace** — UniFFI generates one file; a [generator script](bindings/python/scripts/generate_modules.py) splits exports into domain submodules
 - **Go bindings via uniffi-bindgen-go** — community tool from NordSecurity, static linking with CGo
-- **Monorepo Go module** — subdirectory module path (`github.com/cmaxwell/ffi-testing/bindings/go`)
+- **Monorepo Go module** — subdirectory module path (`github.com/amd-cmaxwell/ffi-testing/bindings/go`)
 
 ## Project structure
 
@@ -60,7 +60,7 @@ uniffi-testing-ffi-python
 ### Go
 
 ```bash
-go install github.com/cmaxwell/ffi-testing/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
+go install github.com/amd-cmaxwell/ffi-testing/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
 uniffi-testing-ffi-go
 ```
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	ffi "github.com/cmaxwell/ffi-testing/bindings/go/uniffi_testing_ffi"
+	ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_ffi"
 )
 
 func must[T any](v T, err error) T {

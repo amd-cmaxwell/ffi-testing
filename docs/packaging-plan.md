@@ -66,7 +66,7 @@ python examples/demo.py
 
 ```
 bindings/go/
-  go.mod                             (module github.com/cmaxwell/ffi-testing/bindings/go)
+  go.mod                             (module github.com/amd-cmaxwell/ffi-testing/bindings/go)
   Makefile
   README.md
   example/
@@ -80,9 +80,9 @@ bindings/go/
 
 ### Steps
 
-1. **Update `go.mod`** — change module path from `uniffi-testing-go` to `github.com/cmaxwell/ffi-testing/bindings/go`
+1. **Update `go.mod`** — change module path from `uniffi-testing-go` to `github.com/amd-cmaxwell/ffi-testing/bindings/go`
 2. **Move `demo.go`** to `example/demo/main.go` — keeps module root clean as a library, not an executable
-3. **Update import path** in the moved demo from `uniffi-testing-go/uniffi_testing_ffi` to `github.com/cmaxwell/ffi-testing/bindings/go/uniffi_testing_ffi`
+3. **Update import path** in the moved demo from `uniffi-testing-go/uniffi_testing_ffi` to `github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_ffi`
 4. **Create `Makefile`** — targets to rebuild .a from Rust source and run demo
 5. **Create `README.md`** — usage, import path, prerequisites
 

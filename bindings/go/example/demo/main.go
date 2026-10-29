@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	ffi "github.com/cmaxwell/ffi-testing/bindings/go/uniffi_testing_ffi"
+	ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_ffi"
 )
 
 func main() {
