@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 """Demo script exercising all UniFFI-generated Python bindings."""
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "bindings", "python"))
 
 from uniffi_testing_ffi import (
     # Core

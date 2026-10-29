@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "uniffi-testing-ffi"
+version = "0.1.0"
+description = "Python bindings for the uniffi-testing math library"
+requires-python = ">=3.8"
+
+[tool.maturin]
+bindings = "uniffi"
+manifest-path = "../../crates/ffi/Cargo.toml"
+module-name = "uniffi_testing_ffi"
