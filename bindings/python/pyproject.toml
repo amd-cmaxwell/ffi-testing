@@ -1,6 +1,6 @@
 [build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "uniffi-testing-ffi"
@@ -11,8 +11,5 @@ requires-python = ">=3.8"
 [project.scripts]
 uniffi-testing-ffi-python = "uniffi_testing_ffi.__main__:main"
 
-[tool.maturin]
-bindings = "uniffi"
-manifest-path = "../../crates/ffi/Cargo.toml"
-module-name = "uniffi_testing_ffi._bindings"
-python-source = "lib"
+[tool.setuptools.packages.find]
+where = ["lib"]

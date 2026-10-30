@@ -1,4 +1,4 @@
-from uniffi_testing_ffi._bindings import (  # noqa: F401
+from uniffi_testing_ffi._bindings.uniffi_testing_trig_ffi import (  # noqa: F401
     circle_area,
     circle_circumference,
     degrees_to_radians,

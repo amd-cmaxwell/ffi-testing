@@ -1,0 +1,13 @@
+[package]
+name = "uniffi-testing-linear-algebra-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "lib"]
+name = "uniffi_testing_linear_algebra_ffi"
+
+[dependencies]
+uniffi = { version = "0.29" }
+uniffi-testing-linear-algebra = { path = "../../linear-algebra" }
+uniffi-testing-types-ffi = { path = "../types" }

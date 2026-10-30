@@ -1,4 +1,4 @@
-from uniffi_testing_ffi._bindings import (  # noqa: F401
+from uniffi_testing_ffi._bindings.uniffi_testing_sequences_ffi import (  # noqa: F401
     arithmetic_sum,
     arithmetic_term,
     combinations,

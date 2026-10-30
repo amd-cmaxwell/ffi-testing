@@ -809,21 +809,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniffi-testing-complex-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-testing-complex",
+ "uniffi-testing-types-ffi",
+]
+
+[[package]]
 name = "uniffi-testing-core"
 version = "0.1.0"
 
 [[package]]
-name = "uniffi-testing-ffi"
+name = "uniffi-testing-core-ffi"
 version = "0.1.0"
 dependencies = [
  "uniffi",
- "uniffi-bindgen-go",
- "uniffi-testing-complex",
  "uniffi-testing-core",
- "uniffi-testing-linear-algebra",
- "uniffi-testing-polynomials",
- "uniffi-testing-sequences",
- "uniffi-testing-trig",
 ]
 
 [[package]]
@@ -834,10 +837,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniffi-testing-linear-algebra-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-testing-linear-algebra",
+ "uniffi-testing-types-ffi",
+]
+
+[[package]]
 name = "uniffi-testing-polynomials"
 version = "0.1.0"
 dependencies = [
  "uniffi-testing-core",
+]
+
+[[package]]
+name = "uniffi-testing-polynomials-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-testing-polynomials",
+ "uniffi-testing-types-ffi",
 ]
 
 [[package]]
@@ -848,9 +869,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniffi-testing-sequences-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-testing-sequences",
+ "uniffi-testing-types-ffi",
+]
+
+[[package]]
 name = "uniffi-testing-trig"
 version = "0.1.0"
 dependencies = [
+ "uniffi-testing-core",
+]
+
+[[package]]
+name = "uniffi-testing-trig-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-testing-trig",
+ "uniffi-testing-types-ffi",
+]
+
+[[package]]
+name = "uniffi-testing-types-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-bindgen-go",
  "uniffi-testing-core",
 ]
 

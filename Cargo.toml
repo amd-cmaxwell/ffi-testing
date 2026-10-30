@@ -6,6 +6,12 @@ members = [
     "crates/linear-algebra",
     "crates/trig",
     "crates/sequences",
-    "crates/ffi",
+    "crates/ffi/types",
+    "crates/ffi/core",
+    "crates/ffi/complex",
+    "crates/ffi/polynomials",
+    "crates/ffi/linear-algebra",
+    "crates/ffi/trig",
+    "crates/ffi/sequences",
 ]
 resolver = "2"

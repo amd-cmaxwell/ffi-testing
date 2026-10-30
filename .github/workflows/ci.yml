@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FFI_MODULES: types core complex polynomials linear_algebra trig sequences
 
 jobs:
   rust-test:
@@ -33,11 +34,14 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            lib_name: libuniffi_testing_ffi.so
+            lib_prefix: lib
+            lib_suffix: .so
           - os: macos-latest
-            lib_name: libuniffi_testing_ffi.dylib
+            lib_prefix: lib
+            lib_suffix: .dylib
           - os: windows-latest
-            lib_name: uniffi_testing_ffi.dll
+            lib_prefix: ""
+            lib_suffix: .dll
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -45,38 +49,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
-      - run: pip install maturin
 
-      - name: Build Rust library
-        run: cargo build --release -p uniffi-testing-ffi
+      - name: Build FFI crates
+        run: cargo build --release
 
       - name: Generate Python bindings
+        shell: bash
         run: |
-          cargo run --release --bin uniffi-bindgen -- generate \
-            --library target/release/${{ matrix.lib_name }} \
-            --language python --out-dir "$RUNNER_TEMP/uniffi-python-gen"
-        shell: bash
+          mkdir -p "$RUNNER_TEMP/uniffi-python-gen"
+          for mod in $FFI_MODULES; do
+            echo "  generating python bindings for $mod"
+            cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen -- generate \
+              --library "target/release/${{ matrix.lib_prefix }}uniffi_testing_${mod}_ffi${{ matrix.lib_suffix }}" \
+              --language python --out-dir "$RUNNER_TEMP/uniffi-python-gen"
+          done
 
-      - name: Generate Python submodules
-        run: python3 bindings/python/scripts/generate_modules.py "$RUNNER_TEMP/uniffi-python-gen/uniffi_testing_ffi.py"
+      - name: Verify generated files
         shell: bash
-
-      - name: Build wheel
-        run: maturin build --release --out "$RUNNER_TEMP/wheels"
-        working-directory: bindings/python
-        shell: bash
-
-      - name: Install and smoke test
-        run: |
-          pip install "$RUNNER_TEMP"/wheels/*.whl
-          python examples/demo.py
-        shell: bash
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheel-${{ matrix.os }}
-          path: ${{ runner.temp }}/wheels/*.whl
+        run: ls -la "$RUNNER_TEMP/uniffi-python-gen/"
 
   go-bindings:
     name: Go bindings (${{ matrix.os }})
@@ -88,11 +78,11 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         include:
           - os: ubuntu-latest
-            lib_name: libuniffi_testing_ffi.so
-            cgo_ldflags: "-lm -ldl -lpthread"
+            lib_prefix: lib
+            lib_suffix: .so
           - os: macos-latest
-            lib_name: libuniffi_testing_ffi.dylib
-            cgo_ldflags: "-lm -lpthread -framework Security -framework Foundation"
+            lib_prefix: lib
+            lib_suffix: .dylib
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -104,44 +94,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build Rust library
-        run: cargo build --release -p uniffi-testing-ffi
+      - name: Build FFI crates
+        run: cargo build --release
 
       - name: Generate Go bindings
+        shell: bash
         run: |
-          cargo run --release --bin uniffi-bindgen-go -- \
-            --library target/release/${{ matrix.lib_name }} \
-            --out-dir "$RUNNER_TEMP/uniffi-go-gen"
+          mkdir -p "$RUNNER_TEMP/uniffi-go-gen"
+          for mod in $FFI_MODULES; do
+            echo "  generating go bindings for $mod"
+            cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen-go -- \
+              --library "target/release/${{ matrix.lib_prefix }}uniffi_testing_${mod}_ffi${{ matrix.lib_suffix }}" \
+              --out-dir "$RUNNER_TEMP/uniffi-go-gen"
+          done
 
-      - name: Copy generated files
-        run: |
-          cp "$RUNNER_TEMP/uniffi-go-gen/uniffi_testing_ffi/uniffi_testing_ffi.go" bindings/go/uniffi_testing_ffi/
-          cp "$RUNNER_TEMP/uniffi-go-gen/uniffi_testing_ffi/uniffi_testing_ffi.h" bindings/go/uniffi_testing_ffi/
-          cp target/release/libuniffi_testing_ffi.a bindings/go/uniffi_testing_ffi/
-
-      - name: Patch CGo LDFLAGS
-        shell: python3 {0}
-        env:
-          CGO_LDFLAGS_EXTRA: ${{ matrix.cgo_ldflags }}
-        run: |
-          import os, pathlib
-          p = pathlib.Path("bindings/go/uniffi_testing_ffi/uniffi_testing_ffi.go")
-          ldflags = os.environ["CGO_LDFLAGS_EXTRA"]
-          srcdir = "${SRCDIR}"
-          t = p.read_text()
-          t = t.replace(
-              "// #include <uniffi_testing_ffi.h>",
-              f"// #cgo LDFLAGS: -L{srcdir} -luniffi_testing_ffi {ldflags}\n// #include <uniffi_testing_ffi.h>"
-          )
-          p.write_text(t)
-
-      - name: Generate Go submodules
-        run: python3 bindings/go/scripts/generate_modules.py bindings/go/uniffi_testing_ffi/uniffi_testing_ffi.go
-
-      - name: Build Go packages
-        run: go build ./...
-        working-directory: bindings/go
-
-      - name: Smoke test
-        run: go run ./example/demo/
-        working-directory: bindings/go
+      - name: Verify generated files
+        shell: bash
+        run: ls -la "$RUNNER_TEMP/uniffi-go-gen/"

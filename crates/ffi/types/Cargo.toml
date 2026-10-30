@@ -1,0 +1,26 @@
+[package]
+name = "uniffi-testing-types-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "lib"]
+name = "uniffi_testing_types_ffi"
+
+[features]
+ffi = ["uniffi/cli", "dep:uniffi-bindgen-go"]
+
+[dependencies]
+uniffi = { version = "0.29" }
+uniffi-testing-core = { path = "../../core" }
+uniffi-bindgen-go = { git = "https://github.com/NordSecurity/uniffi-bindgen-go", tag = "v0.5.0+v0.29.5", optional = true }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+required-features = ["ffi"]
+
+[[bin]]
+name = "uniffi-bindgen-go"
+path = "src/bin/uniffi-bindgen-go.rs"
+required-features = ["ffi"]

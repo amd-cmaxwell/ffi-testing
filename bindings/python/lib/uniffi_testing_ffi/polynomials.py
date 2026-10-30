@@ -1,4 +1,4 @@
-from uniffi_testing_ffi._bindings import (  # noqa: F401
+from uniffi_testing_ffi._bindings.uniffi_testing_polynomials_ffi import (  # noqa: F401
     F64Pair,
     linear_root,
     polynomial_add,
