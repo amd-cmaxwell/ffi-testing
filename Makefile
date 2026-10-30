@@ -16,7 +16,7 @@ generate-python: build generate-python-modules
 	cd bindings/python && maturin develop --release
 
 generate-go: build
-	uniffi-bindgen-go --library target/release/libuniffi_testing_ffi.so --out-dir /tmp/uniffi-go-gen
+	cargo run --release --bin uniffi-bindgen-go -- --library target/release/libuniffi_testing_ffi.so --out-dir /tmp/uniffi-go-gen
 	cp /tmp/uniffi-go-gen/uniffi_testing_ffi/uniffi_testing_ffi.go bindings/go/uniffi_testing_ffi/
 	cp /tmp/uniffi-go-gen/uniffi_testing_ffi/uniffi_testing_ffi.h bindings/go/uniffi_testing_ffi/
 	cp target/release/libuniffi_testing_ffi.a bindings/go/uniffi_testing_ffi/

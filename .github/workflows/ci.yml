@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  UNIFFI_BINDGEN_GO_TAG: v0.5.0+v0.29.5
 
 jobs:
   rust-test:
@@ -105,15 +104,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install uniffi-bindgen-go
-        run: cargo install uniffi-bindgen-go --git https://github.com/NordSecurity/uniffi-bindgen-go --tag ${{ env.UNIFFI_BINDGEN_GO_TAG }}
-
       - name: Build Rust library
         run: cargo build --release -p uniffi-testing-ffi
 
       - name: Generate Go bindings
         run: |
-          uniffi-bindgen-go \
+          cargo run --release --bin uniffi-bindgen-go -- \
             --library target/release/${{ matrix.lib_name }} \
             --out-dir "$RUNNER_TEMP/uniffi-go-gen"
 

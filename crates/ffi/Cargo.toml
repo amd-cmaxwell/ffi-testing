@@ -15,7 +15,12 @@ uniffi-testing-polynomials = { path = "../polynomials" }
 uniffi-testing-linear-algebra = { path = "../linear-algebra" }
 uniffi-testing-trig = { path = "../trig" }
 uniffi-testing-sequences = { path = "../sequences" }
+uniffi-bindgen-go = { git = "https://github.com/NordSecurity/uniffi-bindgen-go", tag = "v0.5.0+v0.29.5" }
 
 [[bin]]
 name = "uniffi-bindgen"
 path = "src/bin/uniffi-bindgen.rs"
+
+[[bin]]
+name = "uniffi-bindgen-go"
+path = "src/bin/uniffi-bindgen-go.rs"
