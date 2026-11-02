@@ -1,0 +1,125 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  '@amd-cmaxwell/uniffi-testing-complex-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  '@amd-cmaxwell/uniffi-testing-core-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  '@amd-cmaxwell/uniffi-testing-linear-algebra-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  '@amd-cmaxwell/uniffi-testing-polynomials-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  '@amd-cmaxwell/uniffi-testing-sequences-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  '@amd-cmaxwell/uniffi-testing-trig-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+  '@amd-cmaxwell/uniffi-testing-types-ffi':
+    dependencies:
+      '@ubjs/core':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6
+      '@ubjs/wasm':
+        specifier: ^0.31.0-6
+        version: 0.31.0-6(@ubjs/core@0.31.0-6)
+    devDependencies:
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+
+packages:
+
+  '@ubjs/core@0.31.0-6':
+    resolution: {integrity: sha512-pscv6Zj8mVmd5+ikb1Zr6XZ0yqYwKGeIV8HU8rf9sTvs7GW34OARAp03xFJ7rE9XE4R6LgwQhzYW9knAuz5yxA==}
+
+  '@ubjs/wasm@0.31.0-6':
+    resolution: {integrity: sha512-ja7pEcA4bCfEyFR8/zxivypUhhudr9n45lwcMR2r9U5hyTGkPnNnp1Ef5NbpTQieJd8wDkumV8Z0Yn0T0JEPAg==}
+    peerDependencies:
+      '@ubjs/core': ^0.31.0-6
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+snapshots:
+
+  '@ubjs/core@0.31.0-6': {}
+
+  '@ubjs/wasm@0.31.0-6(@ubjs/core@0.31.0-6)':
+    dependencies:
+      '@ubjs/core': 0.31.0-6
+
+  typescript@5.9.3: {}

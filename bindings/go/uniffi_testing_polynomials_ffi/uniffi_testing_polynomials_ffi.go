@@ -150,17 +150,18 @@ func LiftFromRustBuffer[GoType any](bufReader BufReader[GoType], rbuf RustBuffer
 	return item
 }
 
-func rustCallWithError[E any, U any](converter BufReader[*E], callback func(*C.RustCallStatus) U) (U, *E) {
+func rustCallWithError[E any, U any](converter BufReader[E], callback func(*C.RustCallStatus) U) (U, E) {
 	var status C.RustCallStatus
 	returnValue := callback(&status)
 	err := checkCallStatus(converter, status)
 	return returnValue, err
 }
 
-func checkCallStatus[E any](converter BufReader[*E], status C.RustCallStatus) *E {
+func checkCallStatus[E any](converter BufReader[E], status C.RustCallStatus) E {
 	switch status.code {
 	case 0:
-		return nil
+		var zero E
+		return zero
 	case 1:
 		return LiftFromRustBuffer(converter, GoRustBuffer{inner: status.errorBuf})
 	case 2:
@@ -358,7 +359,7 @@ func init() {
 
 func uniffiCheckChecksums() {
 	// Get the bindings contract version from our ComponentInterface
-	bindingsContractVersion := 29
+	bindingsContractVersion := 30
 	// Get the scaffolding contract version by calling the into the dylib
 	scaffoldingContractVersion := rustCall(func(_uniffiStatus *C.RustCallStatus) C.uint32_t {
 		return C.ffi_uniffi_testing_polynomials_ffi_uniffi_contract_version()
@@ -593,7 +594,7 @@ func (FfiDestroyerSequenceFloat64) Destroy(sequence []float64) {
 }
 
 func LinearRoot(m float64, b float64) (float64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
 		return C.uniffi_uniffi_testing_polynomials_ffi_fn_func_linear_root(FfiConverterFloat64INSTANCE.Lower(m), FfiConverterFloat64INSTANCE.Lower(b), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -635,7 +636,7 @@ func PolynomialMultiply(a []float64, b []float64) []float64 {
 }
 
 func QuadraticRoots(a float64, b float64, c float64) (F64Pair, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return GoRustBuffer{
 			inner: C.uniffi_uniffi_testing_polynomials_ffi_fn_func_quadratic_roots(FfiConverterFloat64INSTANCE.Lower(a), FfiConverterFloat64INSTANCE.Lower(b), FfiConverterFloat64INSTANCE.Lower(c), _uniffiStatus),
 		}

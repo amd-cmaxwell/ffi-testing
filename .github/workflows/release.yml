@@ -74,8 +74,6 @@ jobs:
             cgo_os: darwin
             cgo_arch: arm64
             lib_suffix: .dylib
-    env:
-      FFI_MODULES: types core complex polynomials linear_algebra trig sequences
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -98,12 +96,47 @@ jobs:
           name: go-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
           path: bindings/go/
 
-  publish-bindings:
-    name: Publish bindings
-    needs: [build-go-bindings, build-python-bindings]
+  build-wasm-bindings:
+    name: WASM/TS bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build, compile, and package WASM/JS bindings
+        run: make generate-js
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-bindings
+          path: bindings/js/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarballs
+          path: dist/npm/*.tgz
+
+  publish-bindings:
+    name: Publish bindings
+    needs: [build-go-bindings, build-python-bindings, build-wasm-bindings]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive FFI modules
+        shell: bash
+        run: |
+          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
+          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
 
       - name: Download Go binding artifacts
         uses: actions/download-artifact@v4
@@ -119,24 +152,40 @@ jobs:
           pattern: python-bindings-*
           merge-multiple: true
 
-      - name: Ensure go.mod exists
-        run: |
-          if [ ! -f bindings/go/go.mod ]; then
-            cd bindings/go && go mod init github.com/amd-cmaxwell/ffi-testing/bindings/go
-          fi
-        shell: bash
+      - name: Download WASM binding artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-bindings
+          path: bindings/js
 
       - name: Commit bindings
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add bindings/go/ bindings/python/
+          git add bindings/js/package.json bindings/js/pnpm-workspace.yaml
+          git add 'bindings/js/@amd-cmaxwell/*/package.json'
+          git add 'bindings/js/@amd-cmaxwell/*/tsconfig.json'
+          git add 'bindings/js/@amd-cmaxwell/*/src/'
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
             git commit -m "Update bindings for ${GITHUB_REF_NAME}"
             git push origin HEAD:main
           fi
+        shell: bash
+
+      - name: Tag Go modules
+        run: |
+          for mod in $FFI_MODULES; do
+            crate_dir=$(echo "$mod" | tr '_' '-')
+            pkg="uniffi_testing_${mod}_ffi"
+            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            tag="bindings/go/${pkg}/v${version}"
+            echo "  tagging ${tag}"
+            git tag "${tag}"
+          done
+          git push origin --tags
         shell: bash
 
   release:
@@ -150,10 +199,19 @@ jobs:
           pattern: wheel-*
           merge-multiple: true
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarballs
+          path: npm-tarballs
+
       - name: List artifacts
-        run: ls -la wheels/
+        run: |
+          ls -la wheels/
+          ls -la npm-tarballs/
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: wheels/*.whl
+          files: |
+            wheels/*.whl
+            npm-tarballs/*.tgz
           generate_release_notes: true

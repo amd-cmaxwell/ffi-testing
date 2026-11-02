@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  FFI_MODULES: types core complex polynomials linear_algebra trig sequences
 
 jobs:
   rust-test:
@@ -50,8 +49,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build FFI crates
-        run: cargo build --release
+      - name: Derive FFI modules
+        shell: bash
+        run: |
+          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
+          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
+
+      - name: Build FFI crates and install Python bindgen tool
+        run: |
+          cargo build --release
+          cargo install --path crates/ffi/tools --root .tools --features py-ffi --bin uniffi-bindgen
 
       - name: Generate Python bindings
         shell: bash
@@ -59,7 +66,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/uniffi-python-gen"
           for mod in $FFI_MODULES; do
             echo "  generating python bindings for $mod"
-            cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen -- generate \
+            .tools/bin/uniffi-bindgen generate \
               --library "target/release/${{ matrix.lib_prefix }}uniffi_testing_${mod}_ffi${{ matrix.lib_suffix }}" \
               --language python --out-dir "$RUNNER_TEMP/uniffi-python-gen"
           done
@@ -94,8 +101,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build FFI crates
-        run: cargo build --release
+      - name: Derive FFI modules
+        shell: bash
+        run: |
+          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
+          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
+
+      - name: Build FFI crates and install Go bindgen tool
+        run: |
+          cargo build --release
+          cargo install --path crates/ffi/tools --root .tools --features go-ffi --bin uniffi-bindgen-go
 
       - name: Generate Go bindings
         shell: bash
@@ -103,7 +118,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/uniffi-go-gen"
           for mod in $FFI_MODULES; do
             echo "  generating go bindings for $mod"
-            cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen-go -- \
+            .tools/bin/uniffi-bindgen-go \
               --library "target/release/${{ matrix.lib_prefix }}uniffi_testing_${mod}_ffi${{ matrix.lib_suffix }}" \
               --out-dir "$RUNNER_TEMP/uniffi-go-gen"
           done
@@ -111,3 +126,41 @@ jobs:
       - name: Verify generated files
         shell: bash
         run: ls -la "$RUNNER_TEMP/uniffi-go-gen/"
+
+  wasm-bindings:
+    name: WASM/TS bindings
+    needs: rust-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Derive FFI modules
+        shell: bash
+        run: |
+          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
+          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
+
+      - name: Build, generate, and compile WASM/TS bindings
+        run: make compile-wasm-ts
+
+      - name: Verify packaged output
+        shell: bash
+        run: |
+          for mod in $FFI_MODULES; do
+            crate_dir=$(echo $mod | tr '_' '-')
+            pkg_dir="bindings/js/@amd-cmaxwell/uniffi-testing-${crate_dir}-ffi"
+            echo "=== $pkg_dir ==="
+            ls "$pkg_dir/dist/"
+            test -f "$pkg_dir/dist/index.js"
+            test -f "$pkg_dir/dist/index.d.ts"
+          done

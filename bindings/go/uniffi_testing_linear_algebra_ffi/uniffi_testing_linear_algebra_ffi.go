@@ -150,17 +150,18 @@ func LiftFromRustBuffer[GoType any](bufReader BufReader[GoType], rbuf RustBuffer
 	return item
 }
 
-func rustCallWithError[E any, U any](converter BufReader[*E], callback func(*C.RustCallStatus) U) (U, *E) {
+func rustCallWithError[E any, U any](converter BufReader[E], callback func(*C.RustCallStatus) U) (U, E) {
 	var status C.RustCallStatus
 	returnValue := callback(&status)
 	err := checkCallStatus(converter, status)
 	return returnValue, err
 }
 
-func checkCallStatus[E any](converter BufReader[*E], status C.RustCallStatus) *E {
+func checkCallStatus[E any](converter BufReader[E], status C.RustCallStatus) E {
 	switch status.code {
 	case 0:
-		return nil
+		var zero E
+		return zero
 	case 1:
 		return LiftFromRustBuffer(converter, GoRustBuffer{inner: status.errorBuf})
 	case 2:
@@ -358,7 +359,7 @@ func init() {
 
 func uniffiCheckChecksums() {
 	// Get the bindings contract version from our ComponentInterface
-	bindingsContractVersion := 29
+	bindingsContractVersion := 30
 	// Get the scaffolding contract version by calling the into the dylib
 	scaffoldingContractVersion := rustCall(func(_uniffiStatus *C.RustCallStatus) C.uint32_t {
 		return C.ffi_uniffi_testing_linear_algebra_ffi_uniffi_contract_version()
@@ -768,7 +769,7 @@ func Determinant3x3(m Matrix3x3) float64 {
 }
 
 func DotProduct(a []float64, b []float64) (float64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
 		return C.uniffi_uniffi_testing_linear_algebra_ffi_fn_func_dot_product(FfiConverterSequenceFloat64INSTANCE.Lower(a), FfiConverterSequenceFloat64INSTANCE.Lower(b), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -780,7 +781,7 @@ func DotProduct(a []float64, b []float64) (float64, error) {
 }
 
 func MatrixInverse2x2(m Matrix2x2) (Matrix2x2, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return GoRustBuffer{
 			inner: C.uniffi_uniffi_testing_linear_algebra_ffi_fn_func_matrix_inverse_2x2(FfiConverterMatrix2x2INSTANCE.Lower(m), _uniffiStatus),
 		}
@@ -802,7 +803,7 @@ func MatrixMultiply2x2(a Matrix2x2, b Matrix2x2) Matrix2x2 {
 }
 
 func Solve2x2(a Matrix2x2, b uniffi_testing_types_ffi.Point2) (uniffi_testing_types_ffi.Point2, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return GoRustBuffer{
 			inner: C.uniffi_uniffi_testing_linear_algebra_ffi_fn_func_solve_2x2(FfiConverterMatrix2x2INSTANCE.Lower(a),
 				CFromRustBuffer(uniffi_testing_types_ffi.FfiConverterPoint2INSTANCE.LowerExternal(b)), _uniffiStatus),
@@ -817,7 +818,7 @@ func Solve2x2(a Matrix2x2, b uniffi_testing_types_ffi.Point2) (uniffi_testing_ty
 }
 
 func Solve3x3(a Matrix3x3, b Point3) (Point3, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return GoRustBuffer{
 			inner: C.uniffi_uniffi_testing_linear_algebra_ffi_fn_func_solve_3x3(FfiConverterMatrix3x3INSTANCE.Lower(a), FfiConverterPoint3INSTANCE.Lower(b), _uniffiStatus),
 		}

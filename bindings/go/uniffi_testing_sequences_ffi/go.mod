@@ -1,0 +1,3 @@
+module github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_sequences_ffi
+
+go 1.26.4

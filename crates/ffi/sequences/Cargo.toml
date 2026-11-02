@@ -7,7 +7,11 @@ edition = "2021"
 crate-type = ["cdylib", "staticlib", "lib"]
 name = "uniffi_testing_sequences_ffi"
 
+[features]
+wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-fns", "dep:uniffi-runtime-wasm", "uniffi-testing-types-ffi/wasm"]
+
 [dependencies]
-uniffi = { version = "0.29" }
+uniffi = { version = "0.31" }
+uniffi-runtime-wasm = { version = "0.31.0-6", optional = true }
 uniffi-testing-sequences = { path = "../../sequences" }
 uniffi-testing-types-ffi = { path = "../types" }

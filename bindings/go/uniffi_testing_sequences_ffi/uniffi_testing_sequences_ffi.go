@@ -150,17 +150,18 @@ func LiftFromRustBuffer[GoType any](bufReader BufReader[GoType], rbuf RustBuffer
 	return item
 }
 
-func rustCallWithError[E any, U any](converter BufReader[*E], callback func(*C.RustCallStatus) U) (U, *E) {
+func rustCallWithError[E any, U any](converter BufReader[E], callback func(*C.RustCallStatus) U) (U, E) {
 	var status C.RustCallStatus
 	returnValue := callback(&status)
 	err := checkCallStatus(converter, status)
 	return returnValue, err
 }
 
-func checkCallStatus[E any](converter BufReader[*E], status C.RustCallStatus) *E {
+func checkCallStatus[E any](converter BufReader[E], status C.RustCallStatus) E {
 	switch status.code {
 	case 0:
-		return nil
+		var zero E
+		return zero
 	case 1:
 		return LiftFromRustBuffer(converter, GoRustBuffer{inner: status.errorBuf})
 	case 2:
@@ -358,7 +359,7 @@ func init() {
 
 func uniffiCheckChecksums() {
 	// Get the bindings contract version from our ComponentInterface
-	bindingsContractVersion := 29
+	bindingsContractVersion := 30
 	// Get the scaffolding contract version by calling the into the dylib
 	scaffoldingContractVersion := rustCall(func(_uniffiStatus *C.RustCallStatus) C.uint32_t {
 		return C.ffi_uniffi_testing_sequences_ffi_uniffi_contract_version()
@@ -623,7 +624,7 @@ func ArithmeticTerm(a1 float64, d float64, n uint64) float64 {
 }
 
 func Combinations(n uint64, r uint64) (uint64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
 		return C.uniffi_uniffi_testing_sequences_ffi_fn_func_combinations(FfiConverterUint64INSTANCE.Lower(n), FfiConverterUint64INSTANCE.Lower(r), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -635,7 +636,7 @@ func Combinations(n uint64, r uint64) (uint64, error) {
 }
 
 func Factorial(n uint64) (uint64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
 		return C.uniffi_uniffi_testing_sequences_ffi_fn_func_factorial(FfiConverterUint64INSTANCE.Lower(n), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -647,7 +648,7 @@ func Factorial(n uint64) (uint64, error) {
 }
 
 func Fibonacci(n uint64) (uint64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
 		return C.uniffi_uniffi_testing_sequences_ffi_fn_func_fibonacci(FfiConverterUint64INSTANCE.Lower(n), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -671,7 +672,7 @@ func GeometricSum(a1 float64, r float64, n uint64) float64 {
 }
 
 func GeometricSumInfinite(a1 float64, r float64) (float64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
 		return C.uniffi_uniffi_testing_sequences_ffi_fn_func_geometric_sum_infinite(FfiConverterFloat64INSTANCE.Lower(a1), FfiConverterFloat64INSTANCE.Lower(r), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -695,7 +696,7 @@ func IsPrime(n uint64) bool {
 }
 
 func Lcm(a uint64, b uint64) (uint64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
 		return C.uniffi_uniffi_testing_sequences_ffi_fn_func_lcm(FfiConverterUint64INSTANCE.Lower(a), FfiConverterUint64INSTANCE.Lower(b), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -707,7 +708,7 @@ func Lcm(a uint64, b uint64) (uint64, error) {
 }
 
 func Permutations(n uint64, r uint64) (uint64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.uint64_t {
 		return C.uniffi_uniffi_testing_sequences_ffi_fn_func_permutations(FfiConverterUint64INSTANCE.Lower(n), FfiConverterUint64INSTANCE.Lower(r), _uniffiStatus)
 	})
 	if _uniffiErr != nil {

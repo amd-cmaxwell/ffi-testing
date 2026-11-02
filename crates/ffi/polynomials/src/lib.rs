@@ -1,3 +1,6 @@
+#[cfg(target_arch = "wasm32")]
+extern crate uniffi_runtime_wasm as _;
+
 uniffi::setup_scaffolding!();
 
 use uniffi_testing_polynomials as poly;

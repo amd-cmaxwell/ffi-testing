@@ -14,4 +14,7 @@ members = [
     "crates/ffi/trig",
     "crates/ffi/sequences",
 ]
+exclude = [
+    "crates/ffi/tools",
+]
 resolver = "2"

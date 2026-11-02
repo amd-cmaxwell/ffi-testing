@@ -3,3 +3,4 @@ go_mod = "github.com/amd-cmaxwell/ffi-testing/bindings/go"
 
 [bindings.python.external_packages]
 uniffi_testing_types_ffi = "uniffi_testing_types_ffi"
+

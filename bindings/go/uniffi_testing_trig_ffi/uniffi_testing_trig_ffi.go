@@ -150,17 +150,18 @@ func LiftFromRustBuffer[GoType any](bufReader BufReader[GoType], rbuf RustBuffer
 	return item
 }
 
-func rustCallWithError[E any, U any](converter BufReader[*E], callback func(*C.RustCallStatus) U) (U, *E) {
+func rustCallWithError[E any, U any](converter BufReader[E], callback func(*C.RustCallStatus) U) (U, E) {
 	var status C.RustCallStatus
 	returnValue := callback(&status)
 	err := checkCallStatus(converter, status)
 	return returnValue, err
 }
 
-func checkCallStatus[E any](converter BufReader[*E], status C.RustCallStatus) *E {
+func checkCallStatus[E any](converter BufReader[E], status C.RustCallStatus) E {
 	switch status.code {
 	case 0:
-		return nil
+		var zero E
+		return zero
 	case 1:
 		return LiftFromRustBuffer(converter, GoRustBuffer{inner: status.errorBuf})
 	case 2:
@@ -358,7 +359,7 @@ func init() {
 
 func uniffiCheckChecksums() {
 	// Get the bindings contract version from our ComponentInterface
-	bindingsContractVersion := 29
+	bindingsContractVersion := 30
 	// Get the scaffolding contract version by calling the into the dylib
 	scaffoldingContractVersion := rustCall(func(_uniffiStatus *C.RustCallStatus) C.uint32_t {
 		return C.ffi_uniffi_testing_trig_ffi_uniffi_contract_version()
@@ -577,7 +578,7 @@ func Distance3d(x1 float64, y1 float64, z1 float64, x2 float64, y2 float64, z2 f
 }
 
 func LawOfCosinesAngle(a float64, b float64, c float64) (float64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
 		return C.uniffi_uniffi_testing_trig_ffi_fn_func_law_of_cosines_angle(FfiConverterFloat64INSTANCE.Lower(a), FfiConverterFloat64INSTANCE.Lower(b), FfiConverterFloat64INSTANCE.Lower(c), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
@@ -615,7 +616,7 @@ func RadiansToDegrees(rad float64) float64 {
 }
 
 func TriangleAreaHeron(a float64, b float64, c float64) (float64, error) {
-	_uniffiRV, _uniffiErr := rustCallWithError[MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
+	_uniffiRV, _uniffiErr := rustCallWithError[*uniffi_testing_types_ffi.MathError](uniffi_testing_types_ffi.FfiConverterMathError{}, func(_uniffiStatus *C.RustCallStatus) C.double {
 		return C.uniffi_uniffi_testing_trig_ffi_fn_func_triangle_area_heron(FfiConverterFloat64INSTANCE.Lower(a), FfiConverterFloat64INSTANCE.Lower(b), FfiConverterFloat64INSTANCE.Lower(c), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
