@@ -1,6 +1,5 @@
 package uniffi_testing_trig_ffi
 
-// #cgo LDFLAGS: -L${SRCDIR} -luniffi_testing_trig_ffi -lm -ldl -lpthread
 // #include <uniffi_testing_trig_ffi.h>
 import "C"
 
@@ -8,9 +7,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_types_ffi"
 	"io"
 	"math"
-	"github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_types_ffi"
 	"unsafe"
 )
 

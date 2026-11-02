@@ -11,8 +11,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-wheels:
-    name: Build wheel (${{ matrix.os }})
+  build-python-bindings:
+    name: Python bindings (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -20,11 +20,14 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            lib_name: libuniffi_testing_ffi.so
+            cgo_os: linux
+            cgo_arch: amd64
           - os: macos-latest
-            lib_name: libuniffi_testing_ffi.dylib
+            cgo_os: darwin
+            cgo_arch: arm64
           - os: windows-latest
-            lib_name: uniffi_testing_ffi.dll
+            cgo_os: windows
+            cgo_arch: amd64
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -32,42 +35,113 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
+
       - run: pip install maturin
 
-      - name: Build Rust library
-        run: cargo build --release -p uniffi-testing-ffi
-
       - name: Generate Python bindings
+        run: make generate-python CGO_OS=${{ matrix.cgo_os }}
+        shell: bash
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
+          path: bindings/python/
+
+      - name: Collect wheels
+        shell: bash
         run: |
-          cargo run --release --bin uniffi-bindgen -- generate \
-            --library target/release/${{ matrix.lib_name }} \
-            --language python --out-dir "$RUNNER_TEMP/uniffi-python-gen"
-        shell: bash
-
-      - name: Generate Python submodules
-        run: python3 bindings/python/scripts/generate_modules.py "$RUNNER_TEMP/uniffi-python-gen/uniffi_testing_ffi.py"
-        shell: bash
-
-      - name: Build wheel
-        run: maturin build --release --out "$RUNNER_TEMP/wheels"
-        working-directory: bindings/python
-        shell: bash
-
-      - name: Smoke test
-        run: |
-          pip install "$RUNNER_TEMP"/wheels/*.whl
-          python examples/demo.py
-        shell: bash
+          mkdir -p "$RUNNER_TEMP/wheels"
+          find bindings/python -name '*.whl' -exec cp {} "$RUNNER_TEMP/wheels/" \;
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}
           path: ${{ runner.temp }}/wheels/*.whl
 
+  build-go-bindings:
+    name: Go bindings (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            cgo_os: linux
+            cgo_arch: amd64
+            lib_suffix: .so
+          - os: macos-latest
+            cgo_os: darwin
+            cgo_arch: arm64
+            lib_suffix: .dylib
+    env:
+      FFI_MODULES: types core complex polynomials linear_algebra trig sequences
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build FFI crates
+        run: cargo build --release
+
+      - name: Generate Go bindings
+        run: make generate-go CGO_OS=${{ matrix.cgo_os }} CGO_ARCH=${{ matrix.cgo_arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
+          path: bindings/go/
+
+  publish-bindings:
+    name: Publish bindings
+    needs: [build-go-bindings, build-python-bindings]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Go binding artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bindings/go
+          pattern: go-bindings-*
+          merge-multiple: true
+
+      - name: Download Python binding artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bindings/python
+          pattern: python-bindings-*
+          merge-multiple: true
+
+      - name: Ensure go.mod exists
+        run: |
+          if [ ! -f bindings/go/go.mod ]; then
+            cd bindings/go && go mod init github.com/amd-cmaxwell/ffi-testing/bindings/go
+          fi
+        shell: bash
+
+      - name: Commit bindings
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bindings/go/ bindings/python/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update bindings for ${GITHUB_REF_NAME}"
+            git push origin HEAD:main
+          fi
+        shell: bash
+
   release:
     name: Publish GitHub Release
-    needs: build-wheels
+    needs: [publish-bindings]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

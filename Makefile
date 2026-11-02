@@ -3,7 +3,22 @@
 FFI_CRATE_DIRS  := $(wildcard crates/ffi/*/Cargo.toml)
 FFI_CRATE_PATHS := $(patsubst %/Cargo.toml,%,$(FFI_CRATE_DIRS))
 FFI_CRATE_NAMES := $(notdir $(FFI_CRATE_PATHS))
-FFI_LIBS        := $(sort $(subst -,_,$(FFI_CRATE_NAMES)))
+FFI_LIBS        ?= $(sort $(subst -,_,$(FFI_CRATE_NAMES)))
+
+BINDINGS_DIR    ?= $(CURDIR)/bindings
+PY_BINDINGS_DIR ?= $(BINDINGS_DIR)/python
+GO_BINDINGS_DIR ?= $(BINDINGS_DIR)/go
+
+CGO_OS   ?= $(shell go env GOOS 2>/dev/null || echo linux)
+CGO_ARCH ?= $(shell go env GOARCH 2>/dev/null || echo amd64)
+
+LIB_SUFFIX_linux  := .so
+LIB_SUFFIX_darwin := .dylib
+LIB_SUFFIX        := $(LIB_SUFFIX_$(CGO_OS))
+
+CGO_LDFLAGS_linux  := -lm -ldl -lpthread
+CGO_LDFLAGS_darwin := -lm -lpthread -framework Security
+CGO_LDFLAGS_EXTRA  := $(CGO_LDFLAGS_$(CGO_OS))
 
 build:
 	cargo build --release
@@ -11,54 +26,61 @@ build:
 test:
 	cargo test --workspace
 
-generate-python: build
-	@rm -rf /tmp/uniffi-python-gen
-	@mkdir -p /tmp/uniffi-python-gen
-	@for lib in $(FFI_LIBS); do \
-		echo "  generating python bindings for $$lib"; \
-		cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen -- generate \
-			--library target/release/libuniffi_testing_$${lib}_ffi.so \
-			--language python --out-dir /tmp/uniffi-python-gen; \
+generate-python:
+	@for ffi_lib in $(FFI_LIBS); do \
+		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
+		pkg_name=uniffi-testing-$${crate_dir}-ffi; \
+		manifest_path=../../../crates/ffi/$$crate_dir/Cargo.toml; \
+		proj_dir=$(PY_BINDINGS_DIR)/$$pkg_name; \
+		mkdir -p $$proj_dir; \
+		if [ ! -f $$proj_dir/pyproject.toml ]; then \
+			echo "  creating python project for $$pkg_name"; \
+			sed \
+				-e "s|PKG_NAME|$$pkg_name|" \
+				-e "s|MANIFEST_PATH|$$manifest_path|" \
+				templates/pyproject.toml > $$proj_dir/pyproject.toml; \
+		fi; \
+		echo "  building python bindings for $$ffi_lib"; \
+		cd $$proj_dir && maturin build --release --out $$proj_dir/dist; \
 	done
-	@echo "  python bindings written to /tmp/uniffi-python-gen/"
+	@echo "  python bindings written to $(PY_BINDINGS_DIR)/"
 
 install-python: generate-python
-	@echo "  copying python bindings and shared libraries"
-	@cp /tmp/uniffi-python-gen/*.py bindings/python/lib/uniffi_testing_ffi/_bindings/
-	@for lib in $(FFI_LIBS); do \
-		cp target/release/libuniffi_testing_$${lib}_ffi.so \
-			bindings/python/lib/uniffi_testing_ffi/_bindings/; \
+	@for ffi_lib in $(FFI_LIBS); do \
+		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
+		pkg_name=uniffi-testing-$${crate_dir}-ffi; \
+		echo "  installing python bindings for $$ffi_lib"; \
+		pip install --force-reinstall $(PY_BINDINGS_DIR)/$$pkg_name/dist/*.whl; \
 	done
-	@pip install -e bindings/python
-	@echo "  python package installed"
+	@echo "  all python bindings installed"
 
 generate-go: build
-	@rm -rf /tmp/uniffi-go-gen
-	@mkdir -p /tmp/uniffi-go-gen
-	@for lib in $(FFI_LIBS); do \
-		echo "  generating go bindings for $$lib"; \
+	@mkdir -p $(GO_BINDINGS_DIR)
+	@for ffi_lib in $(FFI_LIBS); do \
+		echo "  generating go bindings for $$ffi_lib ($(CGO_OS)/$(CGO_ARCH))"; \
+		pkg=uniffi_testing_$${ffi_lib}_ffi; \
+		lib=lib$${pkg}; \
+		lib_dynamic=$${lib}$(LIB_SUFFIX); \
+		lib_static=$${lib}.a; \
 		cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen-go -- \
-			--library target/release/libuniffi_testing_$${lib}_ffi.so \
-			--out-dir /tmp/uniffi-go-gen; \
+			--library target/release/$${lib_dynamic} \
+			--config uniffi.toml \
+			--out-dir $(GO_BINDINGS_DIR); \
+		mkdir -p $(GO_BINDINGS_DIR)/$$pkg/lib/$(CGO_OS)_$(CGO_ARCH); \
+		cp target/release/$${lib_static} $(GO_BINDINGS_DIR)/$$pkg/lib/$(CGO_OS)_$(CGO_ARCH)/; \
+		sed \
+			-e "s|CGO_OS_CGO_ARCH|$(CGO_OS)_$(CGO_ARCH)|g" \
+			-e "s|CGO_OS|$(CGO_OS)|g" \
+			-e "s|CGO_ARCH|$(CGO_ARCH)|g" \
+			-e "s|PKG_NAME|$$pkg|g" \
+			-e "s|CGO_LDFLAGS_EXTRA|$(CGO_LDFLAGS_EXTRA)|g" \
+			templates/cgo_platform.go \
+		> $(GO_BINDINGS_DIR)/$$pkg/cgo_$(CGO_OS)_$(CGO_ARCH).go; \
 	done
-	@echo "  go bindings written to /tmp/uniffi-go-gen/"
-
-GO_MODULE = github.com/amd-cmaxwell/ffi-testing/bindings/go
+	@echo "  go bindings written to $(GO_BINDINGS_DIR)/"
 
 install-go: generate-go
-	@echo "  copying go bindings and static libraries"
-	@for lib in $(FFI_LIBS); do \
-		pkg=uniffi_testing_$${lib}_ffi; \
-		mkdir -p bindings/go/$$pkg; \
-		cp /tmp/uniffi-go-gen/$$pkg/$$pkg.go bindings/go/$$pkg/; \
-		cp /tmp/uniffi-go-gen/$$pkg/$$pkg.h bindings/go/$$pkg/; \
-		cp target/release/libuniffi_testing_$${lib}_ffi.a bindings/go/$$pkg/; \
-		sed -i 's|// #include|// #cgo LDFLAGS: -L$${SRCDIR} -luniffi_testing_'"$${lib}"'_ffi -lm -ldl -lpthread\n// #include|' \
-			bindings/go/$$pkg/$$pkg.go; \
-		sed -i 's|"uniffi_testing_types_ffi"|"$(GO_MODULE)/uniffi_testing_types_ffi"|g' \
-			bindings/go/$$pkg/$$pkg.go; \
-	done
-	@echo "  go packages installed"
+	@echo "  go packages ready at $(GO_BINDINGS_DIR)/"
 
 generate-all: generate-python generate-go
 
@@ -66,7 +88,7 @@ test-python: install-python
 	python examples/demo.py
 
 test-go: install-go
-	cd bindings/go && go build ./...
+	cd $(GO_BINDINGS_DIR) && go build ./...
 
 clean:
 	cargo clean

@@ -1,6 +1,5 @@
 package uniffi_testing_types_ffi
 
-// #cgo LDFLAGS: -L${SRCDIR} -luniffi_testing_types_ffi -lm -ldl -lpthread
 // #include <uniffi_testing_types_ffi.h>
 import "C"
 

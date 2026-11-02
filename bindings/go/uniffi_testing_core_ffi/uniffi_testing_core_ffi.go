@@ -1,6 +1,5 @@
 package uniffi_testing_core_ffi
 
-// #cgo LDFLAGS: -L${SRCDIR} -luniffi_testing_core_ffi -lm -ldl -lpthread
 // #include <uniffi_testing_core_ffi.h>
 import "C"
 

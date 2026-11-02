@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """Demo script exercising all UniFFI-generated Python bindings."""
 
-from uniffi_testing_ffi import MathError
-from uniffi_testing_ffi.core import add
-from uniffi_testing_ffi.complex import (
+from uniffi_testing_types_ffi import MathError, Point2
+from uniffi_testing_core_ffi import add
+from uniffi_testing_complex_ffi import (
     complex_new, complex_magnitude, complex_argument, complex_conjugate,
     complex_add, complex_mul, complex_display, quadratic_roots_complex,
 )
-from uniffi_testing_ffi.polynomials import (
+from uniffi_testing_polynomials_ffi import (
     polynomial_evaluate, quadratic_roots, linear_root,
     polynomial_multiply, polynomial_derivative,
 )
-from uniffi_testing_ffi.linear_algebra import (
-    Matrix2x2, Point2, Point3,
+from uniffi_testing_linear_algebra_ffi import (
+    Matrix2x2, Point3,
     determinant_2x2, solve_2x2, dot_product, cross_product_3d,
 )
-from uniffi_testing_ffi.trig import (
+from uniffi_testing_trig_ffi import (
     degrees_to_radians, radians_to_degrees,
     distance_2d, midpoint_2d, triangle_area_heron, circle_area,
     law_of_cosines_angle,
 )
-from uniffi_testing_ffi.sequences import (
+from uniffi_testing_sequences_ffi import (
     arithmetic_sum, geometric_sum_infinite,
     factorial, permutations, combinations,
     gcd, lcm, fibonacci, is_prime,
