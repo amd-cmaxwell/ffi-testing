@@ -2,10 +2,10 @@
 
 ## Context
 
-Each FFI crate gets its own npm package under `@amd-cmaxwell/`, mirroring the monorepo structure. Packages are installable via pnpm's git subdirectory support:
+Each FFI crate gets its own npm package under `<npm-scope>/`, mirroring the monorepo structure. Packages are installable via pnpm's git subdirectory support:
 
 ```
-pnpm install git+https://github.com/amd-cmaxwell/ffi-testing#path=bindings/wasm/@amd-cmaxwell/uniffi-testing-core-ffi
+pnpm install git+https://github.com/<owner>/<repo>#path=bindings/wasm/<npm-scope>/uniffi-testing-core-ffi
 ```
 
 CI commits only source files — no `dist/`, no `node_modules/`. A `prepare` script compiles TypeScript on install.
@@ -31,8 +31,8 @@ These are upstream bugs in https://github.com/nicholasChapman/uniffi-bindgen-js.
 ```
 bindings/wasm/
   package.json              (private workspace root)
-  pnpm-workspace.yaml       (lists @amd-cmaxwell/*)
-  @amd-cmaxwell/uniffi-testing-core-ffi/
+  pnpm-workspace.yaml       (lists <npm-scope>/*)
+  <npm-scope>/uniffi-testing-core-ffi/
     package.json            (has "prepare": "tsc")
     tsconfig.json
     src/

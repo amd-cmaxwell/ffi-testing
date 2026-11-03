@@ -2,14 +2,14 @@
 
 ## Context
 
-Each FFI crate needs its own npm package under `@amd-cmaxwell/`, mirroring the monorepo structure (same as Python gets per-crate wheels and Go gets per-crate packages). The generated TS uses relative `./uniffi_testing_types_ffi` imports for cross-module deps — these need rewriting to npm package names during packaging.
+Each FFI crate needs its own npm package under `<npm-scope>/`, mirroring the monorepo structure (same as Python gets per-crate wheels and Go gets per-crate packages). The generated TS uses relative `./uniffi_testing_types_ffi` imports for cross-module deps — these need rewriting to npm package names during packaging.
 
 Two existing bugs to fix: (1) `linear_algebra` and `trig` need `--crate-name` passed to the bindgen, and (2) cross-module imports need the types `.ts`/`.wasm` alongside or rewritten.
 
 ## Package structure (per crate)
 
 ```
-bindings/wasm/@amd-cmaxwell/uniffi-testing-core-ffi/
+bindings/wasm/<npm-scope>/uniffi-testing-core-ffi/
   package.json
   tsconfig.json
   src/
@@ -21,11 +21,11 @@ bindings/wasm/@amd-cmaxwell/uniffi-testing-core-ffi/
 
 For crates that import types (complex, polynomials, sequences, linear_algebra, trig):
 ```
-bindings/wasm/@amd-cmaxwell/uniffi-testing-complex-ffi/
-  package.json                    (has dependency on @amd-cmaxwell/uniffi-testing-types-ffi)
+bindings/wasm/<npm-scope>/uniffi-testing-complex-ffi/
+  package.json                    (has dependency on <npm-scope>/uniffi-testing-types-ffi)
   tsconfig.json
   src/
-    uniffi_testing_complex_ffi.ts (import rewritten to '@amd-cmaxwell/uniffi-testing-types-ffi')
+    uniffi_testing_complex_ffi.ts (import rewritten to '<npm-scope>/uniffi-testing-types-ffi')
     uniffi_testing_complex_ffi.wasm
     uniffi_runtime.ts
   dist/
@@ -41,15 +41,15 @@ bindings/wasm/@amd-cmaxwell/uniffi-testing-complex-ffi/
 ### 2. Add `package-wasm` Makefile target
 
 For each FFI lib:
-1. Generate into a temp dir, then move into `$(WASM_BINDINGS_DIR)/@amd-cmaxwell/uniffi-testing-<crate>-ffi/src/`
+1. Generate into a temp dir, then move into `$(WASM_BINDINGS_DIR)/<npm-scope>/uniffi-testing-<crate>-ffi/src/`
 2. Stamp `package.json` from template (substitute `PKG_NAME` and add deps for types if needed)
 3. Copy `tsconfig.json` template
-4. Rewrite any `from './uniffi_testing_types_ffi'` imports to `from '@amd-cmaxwell/uniffi-testing-types-ffi'`
+4. Rewrite any `from './uniffi_testing_types_ffi'` imports to `from '<npm-scope>/uniffi-testing-types-ffi'`
 5. Run `npx tsc` in each package dir to produce `dist/`
 
 ### 3. New templates
 
-**`templates/wasm/package.json`:**
+**`templates/js/package.json`:**
 ```json
 {
   "name": "PKG_NAME",
@@ -67,7 +67,7 @@ For each FFI lib:
 }
 ```
 
-**`templates/wasm/tsconfig.json`:** (same for all, no templating needed)
+**`templates/js/tsconfig.json`:** (same for all, no templating needed)
 ```json
 {
   "compilerOptions": {
@@ -105,12 +105,12 @@ Update `wasm-bindings` job to run `make package-wasm` and verify compiled output
 
 ## Files to modify
 - `Makefile` — fix `generate-wasm` (add `--crate-name`), add `package-wasm`
-- `templates/wasm/package.json` — new
-- `templates/wasm/tsconfig.json` — new
+- `templates/js/package.json` — new
+- `templates/js/tsconfig.json` — new
 - `.github/workflows/ci.yml` — update wasm-bindings job
 - `.github/workflows/release.yml` — update build/release jobs
 
 ## Verification
 1. `make generate-wasm` — each module dir has correct `.ts` with own-name exports
 2. `make package-wasm` — each `dist/` has `.js` + `.d.ts`, cross-module imports rewritten
-3. `cd bindings/wasm/@amd-cmaxwell/uniffi-testing-core-ffi && npm pack` produces valid tarball
+3. `cd bindings/wasm/<npm-scope>/uniffi-testing-core-ffi && npm pack` produces valid tarball

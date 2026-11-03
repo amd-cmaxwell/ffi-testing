@@ -4,6 +4,7 @@
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
        test-python test-go \
+       stamp-uniffi-config \
        clean clean-tools clean-python clean-go clean-js clean-bindings clean-all purge
 
 PKG_PREFIX := uniffi-testing
@@ -18,7 +19,8 @@ PY_BINDINGS_DIR   ?= $(BINDINGS_DIR)/python
 GO_BINDINGS_DIR   ?= $(BINDINGS_DIR)/go
 JS_BINDINGS_DIR   ?= $(BINDINGS_DIR)/js
 
-GO_MODULE_BASE ?= github.com/amd-cmaxwell/ffi-testing/bindings/go
+GITHUB_REPO    ?= github.com/amd-cmaxwell/ffi-testing
+GO_MODULE_BASE ?= $(GITHUB_REPO)/bindings/go
 CGO_OS         ?= $(shell go env GOOS 2>/dev/null || echo linux)
 CGO_ARCH       ?= $(shell go env GOARCH 2>/dev/null || echo amd64)
 
@@ -38,6 +40,7 @@ TOOLS_DIR         := $(CURDIR)/.tools
 UNIFFI_BINDGEN    := $(TOOLS_DIR)/bin/uniffi-bindgen
 UNIFFI_BINDGEN_GO := $(TOOLS_DIR)/bin/uniffi-bindgen-go
 UNIFFI_BINDGEN_RN := $(TOOLS_DIR)/bin/uniffi-bindgen-react-native
+UNIFFI_TOML_FILES := uniffi.toml $(wildcard crates/ffi/*/uniffi.toml)
 
 build:
 	cargo build --release
@@ -126,7 +129,13 @@ install-python: generate-python
 	done
 	@echo "  all python bindings installed"
 
-generate-go: build build-tools-go
+
+stamp-uniffi-config:
+	@for f in $(UNIFFI_TOML_FILES); do \
+		sed -i 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f; \
+	done
+
+generate-go: build build-tools-go stamp-uniffi-config
 	@mkdir -p $(GO_BINDINGS_DIR)
 	@for ffi_lib in $(FFI_LIBS); do \
 		echo "  generating go bindings for $$ffi_lib ($(CGO_OS)/$(CGO_ARCH))"; \
@@ -159,8 +168,10 @@ install-go: generate-go
 
 generate-wasm-ts: build-tools-wasm
 	@mkdir -p $(JS_BINDINGS_DIR)
-	@cp $(CURDIR)/templates/wasm/pnpm-workspace.yaml $(JS_BINDINGS_DIR)/pnpm-workspace.yaml
-	@cp $(CURDIR)/templates/wasm/root-package.json $(JS_BINDINGS_DIR)/package.json
+	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
+		$(CURDIR)/templates/js/pnpm-workspace.yaml > $(JS_BINDINGS_DIR)/pnpm-workspace.yaml
+	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
+		$(CURDIR)/templates/js/root-package.json > $(JS_BINDINGS_DIR)/package.json
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
 		pkg=uniffi_testing_$${ffi_lib}_ffi; \
@@ -190,8 +201,8 @@ compile-wasm-ts: js-dependencies generate-wasm-ts
 		echo "  stamping $$npm_pkg@$$crate_version"; \
 		sed -e "s|PKG_NAME|$$npm_pkg|" \
 			-e "s|PKG_VERSION|$$crate_version|" \
-			$(CURDIR)/templates/wasm/package.json > $$pkg_dir/package.json; \
-		cp $(CURDIR)/templates/wasm/tsconfig.json $$pkg_dir/tsconfig.json; \
+			$(CURDIR)/templates/js/package.json > $$pkg_dir/package.json; \
+		cp $(CURDIR)/templates/js/tsconfig.json $$pkg_dir/tsconfig.json; \
 	done
 	@echo "  compiling typescript"
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \

@@ -9,6 +9,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  NPM_SCOPE: "@amd-cmaxwell"
 
 jobs:
   build-python-bindings:
@@ -164,9 +165,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add bindings/go/ bindings/python/
           git add bindings/js/package.json bindings/js/pnpm-workspace.yaml
-          git add 'bindings/js/@amd-cmaxwell/*/package.json'
-          git add 'bindings/js/@amd-cmaxwell/*/tsconfig.json'
-          git add 'bindings/js/@amd-cmaxwell/*/src/'
+          git add 'bindings/js/'"${NPM_SCOPE}"'/*/package.json'
+          git add 'bindings/js/'"${NPM_SCOPE}"'/*/tsconfig.json'
+          git add 'bindings/js/'"${NPM_SCOPE}"'/*/src/'
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
@@ -182,6 +183,10 @@ jobs:
             pkg="uniffi_testing_${mod}_ffi"
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             tag="bindings/go/${pkg}/v${version}"
+            if git rev-parse "${tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${tag} already exists"
+              exit 1
+            fi
             echo "  tagging ${tag}"
             git tag "${tag}"
           done

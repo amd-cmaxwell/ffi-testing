@@ -16,7 +16,7 @@ A Rust workspace with six domain crates (core, complex, polynomials, linear-alge
 - **Python packaging with maturin** — maturin builds Rust, runs uniffi-bindgen, and produces a wheel in one step
 - **Python submodules over a flat namespace** — UniFFI generates one file; a [generator script](bindings/python/scripts/generate_modules.py) splits exports into domain submodules
 - **Go bindings via uniffi-bindgen-go** — community tool from NordSecurity, static linking with CGo
-- **Monorepo Go module** — subdirectory module path (`github.com/amd-cmaxwell/ffi-testing/bindings/go`)
+- **Monorepo Go module** — subdirectory module path (`github.com/<owner>/<repo>/bindings/go`)
 
 ## Project structure
 
@@ -41,12 +41,26 @@ examples/
 docs/                Design decisions and pitfall documentation
 ```
 
+## Template setup
+
+When creating a new project from this template, set these variables in the `Makefile` (or override via environment/command-line):
+
+| Variable | Default | Description |
+|---|---|---|
+| `GITHUB_REPO` | `github.com/amd-cmaxwell/ffi-testing` | GitHub repo path (used for Go module paths) |
+| `GO_MODULE_BASE` | `$(GITHUB_REPO)/bindings/go` | Go module import base |
+| `NPM_SCOPE` | `@amd-cmaxwell` | npm scope for JS/WASM packages |
+
+After updating these values, run `make generate-all` to regenerate all bindings with the new paths. You'll also need to update `examples/demo.go` to use the new Go import path.
+
+The CI workflows (`.github/workflows/ci.yml` and `release.yml`) define `NPM_SCOPE` as an env var — update it there as well.
+
 ## Quick start
 
 ### Python
 
 ```bash
-pipx install git+https://github.com/amd-cmaxwell/ffi-testing.git@math-monorepo-uniffi#subdirectory=bindings/python
+pipx install git+https://github.com/<owner>/<repo>.git@math-monorepo-uniffi#subdirectory=bindings/python
 uniffi-testing-ffi-python
 ```
 
@@ -60,7 +74,7 @@ uniffi-testing-ffi-python
 ### Go
 
 ```bash
-GOPROXY=direct go install github.com/amd-cmaxwell/ffi-testing/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
+GOPROXY=direct go install github.com/<owner>/<repo>/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
 uniffi-testing-ffi-go
 ```
 

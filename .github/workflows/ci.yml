@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NPM_SCOPE: "@amd-cmaxwell"
 
 jobs:
   rust-test:
@@ -158,7 +159,7 @@ jobs:
         run: |
           for mod in $FFI_MODULES; do
             crate_dir=$(echo $mod | tr '_' '-')
-            pkg_dir="bindings/js/@amd-cmaxwell/uniffi-testing-${crate_dir}-ffi"
+            pkg_dir="bindings/js/${NPM_SCOPE}/uniffi-testing-${crate_dir}-ffi"
             echo "=== $pkg_dir ==="
             ls "$pkg_dir/dist/"
             test -f "$pkg_dir/dist/index.js"

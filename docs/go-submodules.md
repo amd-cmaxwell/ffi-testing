@@ -76,8 +76,8 @@ make generate-go
 
 ```go
 import (
-    "github.com/amd-cmaxwell/ffi-testing/bindings/go/complexnums"
-    "github.com/amd-cmaxwell/ffi-testing/bindings/go/linearalgebra"
+    "github.com/<owner>/<repo>/bindings/go/complexnums"
+    "github.com/<owner>/<repo>/bindings/go/linearalgebra"
 )
 
 z := complexnums.New(3.0, 4.0)
