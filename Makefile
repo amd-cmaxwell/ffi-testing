@@ -10,8 +10,9 @@
 #   make generate-js        # Build WASM + TS bindings and pack npm tarballs
 #   make generate-all       # All of the above
 #
-# For template users: set REPO_NAME and PKG_SUFFIX to match your project, then
-# update GITHUB_REPO and NPM_SCOPE to point to your own org/registry.
+# For template users: most variables are resolved dynamically from the directory
+# name, git remote, and GitHub CLI. Override REPO_NAME, PKG_SUFFIX, GITHUB_REPO,
+# or NPM_SCOPE as needed.
 # ──────────────────────────────────────────────────────────────────────────────
 
 .PHONY: build test \
@@ -21,7 +22,8 @@
        install-python install-go install-js compile-wasm-ts generate-js \
        test-python test-go \
        stamp-uniffi-config \
-       clean clean-tools clean-python clean-go clean-js clean-bindings clean-all purge
+       clean clean-tools clean-python clean-go clean-js clean-bindings \
+       clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
 
 # ── Project identity ─────────────────────────────────────────────────────────
 # REPO_NAME    : kebab-case project name, used as the base for all package names;
@@ -48,10 +50,14 @@ FFI_CRATE_NAMES := $(filter-out tools,$(notdir $(FFI_CRATE_PATHS)))
 FFI_LIBS        ?= $(sort $(subst -,_,$(FFI_CRATE_NAMES)))
 
 # ── Output directories ───────────────────────────────────────────────────────
+# Intermediate binding sources go under bindings/; distributable artifacts
+# (wheels, tarballs) go under dist/.
 BINDINGS_DIR      ?= $(CURDIR)/bindings
 PY_BINDINGS_DIR   ?= $(BINDINGS_DIR)/python
 GO_BINDINGS_DIR   ?= $(BINDINGS_DIR)/go
 JS_BINDINGS_DIR   ?= $(BINDINGS_DIR)/js
+PY_WHEELS_DIR     ?= $(CURDIR)/dist/pypi
+NPM_TARBALLS_DIR  ?= $(CURDIR)/dist/npm
 
 # ── Go / CGO configuration ──────────────────────────────────────────────────
 # GITHUB_REPO    : used as the Go module path base; resolved from the
@@ -83,10 +89,10 @@ CGO_LDFLAGS_EXTRA  := $(CGO_LDFLAGS_$(CGO_OS))
 # ── npm / JS configuration ──────────────────────────────────────────────────
 # NPM_SCOPE      : npm org scope for published packages; defaults to
 #                  @<github-username> via _GIT_USER (override for orgs)
-# NPM_PKG_PREFIX : kebab-case prefix within the scope (defaults to PKG_PREFIX)
+# NPM_PKG_PREFIX : kebab-case prefix within the scope (defaults to PKG_PREFIX);
+#                  also used as the pnpm private workspace package name
 NPM_SCOPE       ?= @$(_GIT_USER)
 NPM_PKG_PREFIX  ?= $(PKG_PREFIX)
-NPM_TARBALLS_DIR ?= $(CURDIR)/dist/npm
 
 # ── Tooling paths ────────────────────────────────────────────────────────────
 # Local installs of UniFFI bindgen tools, kept in .tools/ to avoid polluting
@@ -168,10 +174,11 @@ build-tools-wasm:
 	}
 
 # ── Python bindings ─────────────────────────────────────────────────────────
-# Generates a maturin-based Python project per FFI crate, then builds wheels.
-# Package name pattern: $(PKG_PREFIX)-<crate>$(PKG_SUFFIX)
+# Generates a maturin-based Python project per FFI crate, then builds wheels
+# into $(PY_WHEELS_DIR).  Package name pattern: $(PKG_PREFIX)-<crate>$(PKG_SUFFIX)
 
 generate-python: python-dependencies build-tools-py
+	@mkdir -p $(PY_WHEELS_DIR)
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
 		pkg_name=$(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
@@ -186,17 +193,15 @@ generate-python: python-dependencies build-tools-py
 				$(CURDIR)/templates/pyproject.toml > $$proj_dir/pyproject.toml; \
 		fi; \
 		echo "  building python bindings for $$ffi_lib"; \
-		( cd $$proj_dir && PATH=$(TOOLS_DIR)/bin:$$PATH maturin build --release --out $$proj_dir/dist ); \
+		( cd $$proj_dir && PATH=$(TOOLS_DIR)/bin:$$PATH maturin build --release --out $(PY_WHEELS_DIR) ); \
 	done
-	@echo "  python bindings written to $(PY_BINDINGS_DIR)/"
+	@echo "  python wheels written to $(PY_WHEELS_DIR)/"
 
 # Installs generated Python wheels into the current environment
 install-python: generate-python
-	@for ffi_lib in $(FFI_LIBS); do \
-		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg_name=$(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
-		echo "  installing python bindings for $$ffi_lib"; \
-		pip install --force-reinstall $(PY_BINDINGS_DIR)/$$pkg_name/dist/*.whl; \
+	@for whl in $(PY_WHEELS_DIR)/*.whl; do \
+		echo "  installing $$(basename $$whl)"; \
+		pip install --force-reinstall $$whl; \
 	done
 	@echo "  all python bindings installed"
 
@@ -253,6 +258,7 @@ generate-wasm-ts: build-tools-wasm
 	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
 		$(CURDIR)/templates/js/pnpm-workspace.yaml > $(JS_BINDINGS_DIR)/pnpm-workspace.yaml
 	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
+		-e "s|ROOT_PKG_NAME|$(NPM_PKG_PREFIX)|g" \
 		$(CURDIR)/templates/js/root-package.json > $(JS_BINDINGS_DIR)/package.json
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
@@ -270,15 +276,6 @@ generate-wasm-ts: build-tools-wasm
 			--no-format \
 			--ts-dir $$pkg_dir/src; \
 		cp target/wasm32-unknown-unknown/release/$${pkg}.wasm $$pkg_dir/src/; \
-	done
-	@echo "  wasm bindings written to $(JS_BINDINGS_DIR)/"
-
-# Stamps package.json with version from each crate's Cargo.toml, then compiles TS
-compile-wasm-ts: js-dependencies generate-wasm-ts
-	@for ffi_lib in $(FFI_LIBS); do \
-		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
-		pkg_dir=$(JS_BINDINGS_DIR)/$${npm_pkg}; \
 		crate_version=$$(grep '^version' $(CURDIR)/crates/ffi/$$crate_dir/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/'); \
 		echo "  stamping $$npm_pkg@$$crate_version"; \
 		sed -e "s|PKG_NAME|$$npm_pkg|" \
@@ -286,6 +283,10 @@ compile-wasm-ts: js-dependencies generate-wasm-ts
 			$(CURDIR)/templates/js/package.json > $$pkg_dir/package.json; \
 		cp $(CURDIR)/templates/js/tsconfig.json $$pkg_dir/tsconfig.json; \
 	done
+	@echo "  wasm bindings written to $(JS_BINDINGS_DIR)/"
+
+# Compiles generated TypeScript sources
+compile-wasm-ts: js-dependencies generate-wasm-ts
 	@echo "  compiling typescript"
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		( cd "$$pkg_dir" && pnpm exec tsc ); \
@@ -323,14 +324,17 @@ test-go: install-go
 	cd $(GO_BINDINGS_DIR) && go build ./...
 
 # ── Cleanup ──────────────────────────────────────────────────────────────────
-# clean          : cargo clean only (removes target/)
-# clean-tools    : removes locally-installed bindgen tools
-# clean-python   : removes generated Python bindings
-# clean-go       : removes generated Go bindings
-# clean-js       : removes generated JS/WASM bindings
-# clean-bindings : removes all generated bindings (Python + Go + JS)
-# clean-all      : cargo clean + all bindings
-# purge          : everything including local tools
+# clean            : cargo clean only (removes target/)
+# clean-tools      : removes locally-installed bindgen tools
+# clean-python     : removes generated Python binding sources
+# clean-go         : removes generated Go bindings
+# clean-js         : removes generated JS/WASM binding sources
+# clean-bindings   : removes all generated binding sources (Python + Go + JS)
+# clean-py-artifacts : removes built Python wheels (dist/pypi/)
+# clean-js-artifacts : removes packed npm tarballs (dist/npm/)
+# clean-artifacts  : removes all distributable artifacts (wheels + tarballs)
+# clean-all        : cargo clean + bindings + artifacts
+# purge            : everything including local tools
 
 clean:
 	cargo clean
@@ -349,6 +353,14 @@ clean-js:
 
 clean-bindings: clean-python clean-go clean-js
 
-clean-all: clean clean-bindings
+clean-py-artifacts:
+	rm -rf $(PY_WHEELS_DIR)
+
+clean-js-artifacts:
+	rm -rf $(NPM_TARBALLS_DIR)
+
+clean-artifacts: clean-py-artifacts clean-js-artifacts
+
+clean-all: clean clean-bindings clean-artifacts
 
 purge: clean-tools clean-all

@@ -9,7 +9,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  NPM_SCOPE: "@amd-cmaxwell"
+  REPO_NAME: uniffi-testing
+  PKG_SUFFIX: "-ffi"
 
 jobs:
   build-python-bindings:
@@ -40,7 +41,7 @@ jobs:
       - run: pip install maturin
 
       - name: Generate Python bindings
-        run: make generate-python CGO_OS=${{ matrix.cgo_os }}
+        run: make generate-python REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} CGO_OS=${{ matrix.cgo_os }}
         shell: bash
 
       - uses: actions/upload-artifact@v4
@@ -48,16 +49,10 @@ jobs:
           name: python-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
           path: bindings/python/
 
-      - name: Collect wheels
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/wheels"
-          find bindings/python -name '*.whl' -exec cp {} "$RUNNER_TEMP/wheels/" \;
-
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}
-          path: ${{ runner.temp }}/wheels/*.whl
+          path: dist/pypi/*.whl
 
   build-go-bindings:
     name: Go bindings (${{ matrix.os }})
@@ -90,7 +85,7 @@ jobs:
         run: cargo build --release
 
       - name: Generate Go bindings
-        run: make generate-go CGO_OS=${{ matrix.cgo_os }} CGO_ARCH=${{ matrix.cgo_arch }}
+        run: make generate-go REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} CGO_OS=${{ matrix.cgo_os }} CGO_ARCH=${{ matrix.cgo_arch }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -114,7 +109,7 @@ jobs:
           node-version: "20"
 
       - name: Build, compile, and package WASM/JS bindings
-        run: make generate-js
+        run: make generate-js REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -136,6 +131,12 @@ jobs:
       - name: Derive FFI modules
         shell: bash
         run: |
+          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
+          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
+          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
+          npm_scope=$(make -s -p REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} 2>/dev/null | grep '^NPM_SCOPE ' | head -1 | awk '{print $3}')
+          echo "NPM_SCOPE=${npm_scope}" >> "$GITHUB_ENV"
           mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
           echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
 
@@ -180,7 +181,7 @@ jobs:
         run: |
           for mod in $FFI_MODULES; do
             crate_dir=$(echo "$mod" | tr '_' '-')
-            pkg="uniffi_testing_${mod}_ffi"
+            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             tag="bindings/go/${pkg}/v${version}"
             if git rev-parse "${tag}" >/dev/null 2>&1; then

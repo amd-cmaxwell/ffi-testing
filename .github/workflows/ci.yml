@@ -8,7 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  NPM_SCOPE: "@amd-cmaxwell"
+  REPO_NAME: uniffi-testing
+  PKG_SUFFIX: "-ffi"
 
 jobs:
   rust-test:
@@ -53,6 +54,10 @@ jobs:
       - name: Derive FFI modules
         shell: bash
         run: |
+          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
+          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
+          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
           mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
           echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
 
@@ -68,7 +73,7 @@ jobs:
           for mod in $FFI_MODULES; do
             echo "  generating python bindings for $mod"
             .tools/bin/uniffi-bindgen generate \
-              --library "target/release/${{ matrix.lib_prefix }}uniffi_testing_${mod}_ffi${{ matrix.lib_suffix }}" \
+              --library "target/release/${{ matrix.lib_prefix }}${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}${{ matrix.lib_suffix }}" \
               --language python --out-dir "$RUNNER_TEMP/uniffi-python-gen"
           done
 
@@ -105,6 +110,10 @@ jobs:
       - name: Derive FFI modules
         shell: bash
         run: |
+          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
+          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
+          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
           mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
           echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
 
@@ -120,7 +129,7 @@ jobs:
           for mod in $FFI_MODULES; do
             echo "  generating go bindings for $mod"
             .tools/bin/uniffi-bindgen-go \
-              --library "target/release/${{ matrix.lib_prefix }}uniffi_testing_${mod}_ffi${{ matrix.lib_suffix }}" \
+              --library "target/release/${{ matrix.lib_prefix }}${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}${{ matrix.lib_suffix }}" \
               --out-dir "$RUNNER_TEMP/uniffi-go-gen"
           done
 
@@ -148,18 +157,23 @@ jobs:
       - name: Derive FFI modules
         shell: bash
         run: |
+          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
+          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
+          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
           mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
           echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
 
       - name: Build, generate, and compile WASM/TS bindings
-        run: make compile-wasm-ts
+        run: make compile-wasm-ts REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }}
 
       - name: Verify packaged output
         shell: bash
         run: |
+          npm_scope=$(make -s -p REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} 2>/dev/null | grep '^NPM_SCOPE ' | head -1 | awk '{print $3}')
           for mod in $FFI_MODULES; do
             crate_dir=$(echo $mod | tr '_' '-')
-            pkg_dir="bindings/js/${NPM_SCOPE}/uniffi-testing-${crate_dir}-ffi"
+            pkg_dir="bindings/js/${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX}"
             echo "=== $pkg_dir ==="
             ls "$pkg_dir/dist/"
             test -f "$pkg_dir/dist/index.js"
