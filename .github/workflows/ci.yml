@@ -137,8 +137,8 @@ jobs:
         shell: bash
         run: ls -la "$RUNNER_TEMP/uniffi-go-gen/"
 
-  wasm-bindings:
-    name: WASM/TS bindings
+  js-bindings:
+    name: JS/TS/WASM bindings
     needs: rust-test
     runs-on: ubuntu-latest
     steps:
