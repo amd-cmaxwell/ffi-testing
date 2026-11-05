@@ -1,3 +1,19 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# UniFFI Multi-Language Bindings Makefile
+#
+# Generates Python, Go, and WASM/TypeScript bindings from Rust FFI crates using
+# UniFFI. Each crate under crates/ffi/ produces a language-specific package.
+#
+# Quick start:
+#   make generate-python    # Build Python wheels for all FFI crates
+#   make generate-go        # Generate Go modules with CGO static libs
+#   make generate-js        # Build WASM + TS bindings and pack npm tarballs
+#   make generate-all       # All of the above
+#
+# For template users: set REPO_NAME and PKG_SUFFIX to match your project, then
+# update GITHUB_REPO and NPM_SCOPE to point to your own org/registry.
+# ──────────────────────────────────────────────────────────────────────────────
+
 .PHONY: build test \
        python-dependencies js-dependencies install-node \
        build-tools-py build-tools-go build-tools-wasm \
@@ -7,40 +23,81 @@
        stamp-uniffi-config \
        clean clean-tools clean-python clean-go clean-js clean-bindings clean-all purge
 
-PKG_PREFIX := uniffi-testing
+# ── Project identity ─────────────────────────────────────────────────────────
+# REPO_NAME    : kebab-case project name, used as the base for all package names;
+#                resolved from the directory name by default (override to decouple)
+# REPO_NAME_US : underscore variant, used where kebab-case is invalid (Rust crate
+#                names, Go package dirs, WASM filenames)
+# PKG_SUFFIX   : appended to every generated package name (e.g. "-ffi")
+# PKG_SUFFIX_US: underscore variant of PKG_SUFFIX
+# PKG_PREFIX   : full kebab-case prefix for generated packages (defaults to
+#                REPO_NAME; override to decouple package naming from the repo)
+REPO_NAME      ?= $(notdir $(CURDIR))
+REPO_NAME_US   := $(subst -,_,$(REPO_NAME))
+PKG_SUFFIX     ?=
+PKG_SUFFIX_US  := $(subst -,_,$(PKG_SUFFIX))
 
+PKG_PREFIX := $(REPO_NAME)
+
+# ── Crate discovery ──────────────────────────────────────────────────────────
+# Automatically finds all FFI crates under crates/ffi/ (excluding the "tools"
+# helper crate). FFI_LIBS is the underscore-normalized list used in loop bodies.
 FFI_CRATE_DIRS  := $(wildcard crates/ffi/*/Cargo.toml)
 FFI_CRATE_PATHS := $(patsubst %/Cargo.toml,%,$(FFI_CRATE_DIRS))
 FFI_CRATE_NAMES := $(filter-out tools,$(notdir $(FFI_CRATE_PATHS)))
 FFI_LIBS        ?= $(sort $(subst -,_,$(FFI_CRATE_NAMES)))
 
+# ── Output directories ───────────────────────────────────────────────────────
 BINDINGS_DIR      ?= $(CURDIR)/bindings
 PY_BINDINGS_DIR   ?= $(BINDINGS_DIR)/python
 GO_BINDINGS_DIR   ?= $(BINDINGS_DIR)/go
 JS_BINDINGS_DIR   ?= $(BINDINGS_DIR)/js
 
-GITHUB_REPO    ?= github.com/amd-cmaxwell/ffi-testing
+# ── Go / CGO configuration ──────────────────────────────────────────────────
+# GITHUB_REPO    : used as the Go module path base; resolved from the
+#                  "upstream" remote, falling back to "origin", then a
+#                  placeholder. Strips protocol and .git suffix to produce a
+#                  bare host/org/repo path (e.g. github.com/org/repo).
+# CGO_OS/CGO_ARCH: target platform for cross-compiled static libs
+_git_remote_url  = $(shell git remote get-url $(1) 2>/dev/null)
+_strip_git_url   = $(patsubst %.git,%,$(patsubst git@%,%,$(patsubst https://%,%,$(patsubst http://%,%,$(1)))))
+_normalize_ssh   = $(subst :,/,$(_strip_git_url))
+_GIT_REMOTE_RAW := $(or $(call _git_remote_url,upstream),$(call _git_remote_url,origin))
+_GIT_USER       := $(or $(shell gh api user --jq .login 2>/dev/null),OWNER)
+_GIT_REMOTE     := $(if $(_GIT_REMOTE_RAW),$(call _normalize_ssh,$(_GIT_REMOTE_RAW)),github.com/$(_GIT_USER)/$(REPO_NAME))
+GITHUB_REPO     ?= $(_GIT_REMOTE)
 GO_MODULE_BASE ?= $(GITHUB_REPO)/bindings/go
 CGO_OS         ?= $(shell go env GOOS 2>/dev/null || echo linux)
 CGO_ARCH       ?= $(shell go env GOARCH 2>/dev/null || echo amd64)
 
+# Platform-specific shared library extension (.so / .dylib)
 LIB_SUFFIX_linux  := .so
 LIB_SUFFIX_darwin := .dylib
 LIB_SUFFIX        := $(LIB_SUFFIX_$(CGO_OS))
 
+# Platform-specific linker flags for CGO
 CGO_LDFLAGS_linux  := -lm -ldl -lpthread
 CGO_LDFLAGS_darwin := -lm -lpthread -framework Security
 CGO_LDFLAGS_EXTRA  := $(CGO_LDFLAGS_$(CGO_OS))
 
-NPM_SCOPE       ?= @amd-cmaxwell
+# ── npm / JS configuration ──────────────────────────────────────────────────
+# NPM_SCOPE      : npm org scope for published packages; defaults to
+#                  @<github-username> via _GIT_USER (override for orgs)
+# NPM_PKG_PREFIX : kebab-case prefix within the scope (defaults to PKG_PREFIX)
+NPM_SCOPE       ?= @$(_GIT_USER)
 NPM_PKG_PREFIX  ?= $(PKG_PREFIX)
 NPM_TARBALLS_DIR ?= $(CURDIR)/dist/npm
 
+# ── Tooling paths ────────────────────────────────────────────────────────────
+# Local installs of UniFFI bindgen tools, kept in .tools/ to avoid polluting
+# the user's global cargo bin.
 TOOLS_DIR         := $(CURDIR)/.tools
 UNIFFI_BINDGEN    := $(TOOLS_DIR)/bin/uniffi-bindgen
 UNIFFI_BINDGEN_GO := $(TOOLS_DIR)/bin/uniffi-bindgen-go
 UNIFFI_BINDGEN_RN := $(TOOLS_DIR)/bin/uniffi-bindgen-react-native
 UNIFFI_TOML_FILES := uniffi.toml $(wildcard crates/ffi/*/uniffi.toml)
+
+# ── Core build targets ───────────────────────────────────────────────────────
 
 build:
 	cargo build --release
@@ -48,6 +105,10 @@ build:
 test:
 	cargo test --workspace
 
+# ── Dependency bootstrapping ─────────────────────────────────────────────────
+# These targets are no-ops when the required tools are already installed.
+
+# Ensures maturin is available (installs via pipx → pip if needed)
 python-dependencies:
 	@command -v maturin >/dev/null 2>&1 || { \
 		echo "  maturin not found, installing via pipx"; \
@@ -66,6 +127,7 @@ python-dependencies:
 		pipx install maturin; \
 	}
 
+# Ensures Node.js is available (installs via nvm if needed)
 install-node:
 	@command -v node >/dev/null 2>&1 || { \
 		echo "  node not found, installing via nvm"; \
@@ -77,11 +139,15 @@ install-node:
 		. "$$NVM_DIR/nvm.sh" && nvm install 20; \
 	}
 
+# Ensures pnpm is available (installs via corepack if needed)
 js-dependencies: install-node
 	@command -v pnpm >/dev/null 2>&1 || { \
 		echo "  pnpm not found, installing via corepack"; \
 		corepack enable && corepack prepare pnpm@latest --activate; \
 	}
+
+# ── UniFFI bindgen tool builds ──────────────────────────────────────────────
+# Each target installs its bindgen binary into .tools/bin/ if not already present.
 
 build-tools-py:
 	@test -x $(UNIFFI_BINDGEN) || { \
@@ -101,10 +167,14 @@ build-tools-wasm:
 		cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features wasm-ffi --bin uniffi-bindgen-react-native; \
 	}
 
+# ── Python bindings ─────────────────────────────────────────────────────────
+# Generates a maturin-based Python project per FFI crate, then builds wheels.
+# Package name pattern: $(PKG_PREFIX)-<crate>$(PKG_SUFFIX)
+
 generate-python: python-dependencies build-tools-py
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg_name=$(PKG_PREFIX)-$${crate_dir}-ffi; \
+		pkg_name=$(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
 		manifest_path=../../../crates/ffi/$$crate_dir/Cargo.toml; \
 		proj_dir=$(PY_BINDINGS_DIR)/$$pkg_name; \
 		mkdir -p $$proj_dir; \
@@ -120,16 +190,23 @@ generate-python: python-dependencies build-tools-py
 	done
 	@echo "  python bindings written to $(PY_BINDINGS_DIR)/"
 
+# Installs generated Python wheels into the current environment
 install-python: generate-python
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg_name=$(PKG_PREFIX)-$${crate_dir}-ffi; \
+		pkg_name=$(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
 		echo "  installing python bindings for $$ffi_lib"; \
 		pip install --force-reinstall $(PY_BINDINGS_DIR)/$$pkg_name/dist/*.whl; \
 	done
 	@echo "  all python bindings installed"
 
+# ── Go bindings ──────────────────────────────────────────────────────────────
+# Generates Go modules with UniFFI-generated source and platform-specific static
+# libs. Each module gets a go.mod and a CGO platform file from templates/.
+# Package dir pattern: $(REPO_NAME_US)_<lib>$(PKG_SUFFIX_US)
 
+# Stamps the go_mod path into all uniffi.toml files so generated Go code imports
+# from the correct module path.
 stamp-uniffi-config:
 	@for f in $(UNIFFI_TOML_FILES); do \
 		sed -i 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f; \
@@ -139,7 +216,7 @@ generate-go: build build-tools-go stamp-uniffi-config
 	@mkdir -p $(GO_BINDINGS_DIR)
 	@for ffi_lib in $(FFI_LIBS); do \
 		echo "  generating go bindings for $$ffi_lib ($(CGO_OS)/$(CGO_ARCH))"; \
-		pkg=uniffi_testing_$${ffi_lib}_ffi; \
+		pkg=$(REPO_NAME_US)_$${ffi_lib}$(PKG_SUFFIX_US); \
 		lib=lib$${pkg}; \
 		lib_dynamic=$${lib}$(LIB_SUFFIX); \
 		lib_static=$${lib}.a; \
@@ -166,6 +243,11 @@ generate-go: build build-tools-go stamp-uniffi-config
 install-go: generate-go
 	@echo "  go packages ready at $(GO_BINDINGS_DIR)/"
 
+# ── WASM / TypeScript bindings ───────────────────────────────────────────────
+# Builds each FFI crate to wasm32-unknown-unknown, then runs uniffi-bindgen-
+# react-native to produce TypeScript sources + .wasm blobs.
+# npm package pattern: $(NPM_SCOPE)/$(NPM_PKG_PREFIX)-<crate>$(PKG_SUFFIX)
+
 generate-wasm-ts: build-tools-wasm
 	@mkdir -p $(JS_BINDINGS_DIR)
 	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
@@ -174,13 +256,13 @@ generate-wasm-ts: build-tools-wasm
 		$(CURDIR)/templates/js/root-package.json > $(JS_BINDINGS_DIR)/package.json
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg=uniffi_testing_$${ffi_lib}_ffi; \
-		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)-$${crate_dir}-ffi; \
+		pkg=$(REPO_NAME_US)_$${ffi_lib}$(PKG_SUFFIX_US); \
+		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
 		pkg_dir=$(JS_BINDINGS_DIR)/$${npm_pkg}; \
 		mkdir -p $$pkg_dir/src; \
 		echo "  building wasm for $$pkg"; \
 		cargo build --release --target wasm32-unknown-unknown \
-			-p $(PKG_PREFIX)-$${crate_dir}-ffi --features wasm; \
+			-p $(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX) --features wasm; \
 		echo "  generating wasm/ts bindings for $$ffi_lib"; \
 		$(UNIFFI_BINDGEN_RN) \
 			generate wasm2 bindings \
@@ -191,11 +273,11 @@ generate-wasm-ts: build-tools-wasm
 	done
 	@echo "  wasm bindings written to $(JS_BINDINGS_DIR)/"
 
-
+# Stamps package.json with version from each crate's Cargo.toml, then compiles TS
 compile-wasm-ts: js-dependencies generate-wasm-ts
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)-$${crate_dir}-ffi; \
+		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
 		pkg_dir=$(JS_BINDINGS_DIR)/$${npm_pkg}; \
 		crate_version=$$(grep '^version' $(CURDIR)/crates/ffi/$$crate_dir/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/'); \
 		echo "  stamping $$npm_pkg@$$crate_version"; \
@@ -210,6 +292,7 @@ compile-wasm-ts: js-dependencies generate-wasm-ts
 	done
 	@echo "  typescript compiled at $(JS_BINDINGS_DIR)/"
 
+# Packs each JS package into an npm tarball for local installation or publishing
 generate-js: compile-wasm-ts
 	@mkdir -p $(NPM_TARBALLS_DIR)
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
@@ -218,6 +301,7 @@ generate-js: compile-wasm-ts
 	done
 	@echo "  npm tarballs written to $(NPM_TARBALLS_DIR)/"
 
+# Installs packed tarballs into a target JS project (requires JS_PROJECT_DIR)
 install-js: generate-js
 	@test -n "$(JS_PROJECT_DIR)" || { echo "error: JS_PROJECT_DIR is required (e.g. make install-js JS_PROJECT_DIR=../my-app)"; exit 1; }
 	@for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
@@ -226,13 +310,27 @@ install-js: generate-js
 	done
 	@echo "  all js packages installed into $(JS_PROJECT_DIR)/"
 
+# ── Aggregate targets ────────────────────────────────────────────────────────
+
 generate-all: generate-python generate-go generate-js
+
+# ── Smoke tests ──────────────────────────────────────────────────────────────
 
 test-python: install-python
 	python examples/demo.py
 
 test-go: install-go
 	cd $(GO_BINDINGS_DIR) && go build ./...
+
+# ── Cleanup ──────────────────────────────────────────────────────────────────
+# clean          : cargo clean only (removes target/)
+# clean-tools    : removes locally-installed bindgen tools
+# clean-python   : removes generated Python bindings
+# clean-go       : removes generated Go bindings
+# clean-js       : removes generated JS/WASM bindings
+# clean-bindings : removes all generated bindings (Python + Go + JS)
+# clean-all      : cargo clean + all bindings
+# purge          : everything including local tools
 
 clean:
 	cargo clean
