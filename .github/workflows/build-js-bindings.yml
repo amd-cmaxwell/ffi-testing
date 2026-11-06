@@ -1,0 +1,58 @@
+name: Build JS Bindings
+
+on:
+  workflow_call:
+    inputs:
+      repo-name:
+        required: true
+        type: string
+      pkg-suffix:
+        required: true
+        type: string
+      upload-artifacts:
+        required: false
+        type: boolean
+        default: false
+      make-target:
+        required: false
+        type: string
+        default: compile-wasm-ts
+      ffi-libs:
+        required: false
+        type: string
+        default: ""
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  js-bindings:
+    name: JS/TS/WASM bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build JS/TS/WASM bindings
+        run: make ${{ inputs.make-target }} REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.upload-artifacts
+        with:
+          name: js-bindings
+          path: bindings/js/
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.upload-artifacts
+        with:
+          name: npm-tarballs
+          path: dist/npm/*.tgz

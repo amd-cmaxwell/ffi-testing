@@ -13,117 +13,76 @@ env:
   PKG_SUFFIX: "-ffi"
 
 jobs:
-  build-python-bindings:
-    name: Python bindings (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            cgo_os: linux
-            cgo_arch: amd64
-          - os: macos-latest
-            cgo_os: darwin
-            cgo_arch: arm64
-          - os: windows-latest
-            cgo_os: windows
-            cgo_arch: amd64
+  detect-changes:
+    name: Detect changed FFI crates
+    runs-on: ubuntu-latest
+    outputs:
+      ffi-libs: ${{ steps.diff.outputs.ffi_libs }}
+      has-changes: ${{ steps.diff.outputs.has_changes }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          fetch-depth: 0
 
-      - run: pip install maturin
-
-      - name: Generate Python bindings
-        run: make generate-python REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} CGO_OS=${{ matrix.cgo_os }}
+      - name: Find changed FFI crates since last release
+        id: diff
         shell: bash
+        run: |
+          prev_tag=$(git tag --list 'v*' --sort=-v:refname | head -2 | tail -1)
+          changed=()
+          for ffi_toml in crates/ffi/*/Cargo.toml; do
+            crate_dir=$(basename "$(dirname "$ffi_toml")")
+            [ "$crate_dir" = "tools" ] && continue
+            [ "$crate_dir" = "types" ] && continue
+            cur_ver=$(grep '^version' "$ffi_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            prev_ver=$(git show "${prev_tag}:${ffi_toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
+            if [ "$cur_ver" != "$prev_ver" ]; then
+              changed+=("$(echo "$crate_dir" | tr '-' '_')")
+            fi
+          done
+          if [ ${#changed[@]} -gt 0 ]; then
+            echo "ffi_libs=${changed[*]}" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ffi_libs=" >> "$GITHUB_OUTPUT"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: python-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
-          path: bindings/python/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: wheel-${{ matrix.os }}
-          path: dist/pypi/*.whl
+  build-python-bindings:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    uses: ./.github/workflows/build-python-bindings.yml
+    with:
+      repo-name: uniffi-testing
+      pkg-suffix: "-ffi"
+      upload-artifacts: true
+      ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
   build-go-bindings:
-    name: Go bindings (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            cgo_os: linux
-            cgo_arch: amd64
-            lib_suffix: .so
-          - os: macos-latest
-            cgo_os: darwin
-            cgo_arch: arm64
-            lib_suffix: .dylib
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Build FFI crates
-        run: cargo build --release
-
-      - name: Generate Go bindings
-        run: make generate-go REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} CGO_OS=${{ matrix.cgo_os }} CGO_ARCH=${{ matrix.cgo_arch }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: go-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
-          path: bindings/go/
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    uses: ./.github/workflows/build-go-bindings.yml
+    with:
+      repo-name: uniffi-testing
+      pkg-suffix: "-ffi"
+      upload-artifacts: true
+      ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
   build-js-bindings:
-    name: WASM/TS/JS bindings
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Build, compile, and package WASM/TS/JS bindings
-        run: make generate-js REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: js-bindings
-          path: bindings/js/
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: npm-tarballs
-          path: dist/npm/*.tgz
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-changes == 'true'
+    uses: ./.github/workflows/build-js-bindings.yml
+    with:
+      repo-name: uniffi-testing
+      pkg-suffix: "-ffi"
+      upload-artifacts: true
+      make-target: generate-js
+      ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
   publish-bindings:
     name: Publish bindings
-    needs: [build-go-bindings, build-python-bindings, build-js-bindings]
+    needs: [detect-changes, build-go-bindings, build-python-bindings, build-js-bindings]
+    if: needs.detect-changes.outputs.has-changes == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -8,10 +8,19 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  REPO_NAME: uniffi-testing
-  PKG_SUFFIX: "-ffi"
 
 jobs:
+  check-ffi-coverage:
+    name: Check FFI coverage
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check library changes have FFI updates
+        run: ./scripts/check-ffi-coverage.sh origin/${{ github.base_ref }} ${{ github.sha }}
+
   rust-test:
     name: Rust tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -26,156 +35,22 @@ jobs:
       - run: cargo test --workspace
 
   python-bindings:
-    name: Python bindings (${{ matrix.os }})
     needs: rust-test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            lib_prefix: lib
-            lib_suffix: .so
-          - os: macos-latest
-            lib_prefix: lib
-            lib_suffix: .dylib
-          - os: windows-latest
-            lib_prefix: ""
-            lib_suffix: .dll
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Derive FFI modules
-        shell: bash
-        run: |
-          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
-          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
-          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
-          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
-          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
-          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
-
-      - name: Build FFI crates and install Python bindgen tool
-        run: |
-          cargo build --release
-          cargo install --path crates/ffi/tools --root .tools --features py-ffi --bin uniffi-bindgen
-
-      - name: Generate Python bindings
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/uniffi-python-gen"
-          for mod in $FFI_MODULES; do
-            echo "  generating python bindings for $mod"
-            .tools/bin/uniffi-bindgen generate \
-              --library "target/release/${{ matrix.lib_prefix }}${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}${{ matrix.lib_suffix }}" \
-              --language python --out-dir "$RUNNER_TEMP/uniffi-python-gen"
-          done
-
-      - name: Verify generated files
-        shell: bash
-        run: ls -la "$RUNNER_TEMP/uniffi-python-gen/"
+    uses: ./.github/workflows/build-python-bindings.yml
+    with:
+      repo-name: uniffi-testing
+      pkg-suffix: "-ffi"
 
   go-bindings:
-    name: Go bindings (${{ matrix.os }})
     needs: rust-test
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            lib_prefix: lib
-            lib_suffix: .so
-          - os: macos-latest
-            lib_prefix: lib
-            lib_suffix: .dylib
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.21"
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Derive FFI modules
-        shell: bash
-        run: |
-          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
-          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
-          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
-          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
-          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
-          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
-
-      - name: Build FFI crates and install Go bindgen tool
-        run: |
-          cargo build --release
-          cargo install --path crates/ffi/tools --root .tools --features go-ffi --bin uniffi-bindgen-go
-
-      - name: Generate Go bindings
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/uniffi-go-gen"
-          for mod in $FFI_MODULES; do
-            echo "  generating go bindings for $mod"
-            .tools/bin/uniffi-bindgen-go \
-              --library "target/release/${{ matrix.lib_prefix }}${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}${{ matrix.lib_suffix }}" \
-              --out-dir "$RUNNER_TEMP/uniffi-go-gen"
-          done
-
-      - name: Verify generated files
-        shell: bash
-        run: ls -la "$RUNNER_TEMP/uniffi-go-gen/"
+    uses: ./.github/workflows/build-go-bindings.yml
+    with:
+      repo-name: uniffi-testing
+      pkg-suffix: "-ffi"
 
   js-bindings:
-    name: JS/TS/WASM bindings
     needs: rust-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Derive FFI modules
-        shell: bash
-        run: |
-          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
-          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
-          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
-          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
-          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
-          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
-
-      - name: Build, generate, and compile WASM/TS bindings
-        run: make compile-wasm-ts REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }}
-
-      - name: Verify packaged output
-        shell: bash
-        run: |
-          npm_scope=$(make -s -p REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} 2>/dev/null | grep '^NPM_SCOPE ' | head -1 | awk '{print $3}')
-          for mod in $FFI_MODULES; do
-            crate_dir=$(echo $mod | tr '_' '-')
-            pkg_dir="bindings/js/${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX}"
-            echo "=== $pkg_dir ==="
-            ls "$pkg_dir/dist/"
-            test -f "$pkg_dir/dist/index.js"
-            test -f "$pkg_dir/dist/index.d.ts"
-          done
+    uses: ./.github/workflows/build-js-bindings.yml
+    with:
+      repo-name: uniffi-testing
+      pkg-suffix: "-ffi"

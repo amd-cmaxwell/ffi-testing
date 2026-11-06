@@ -1,0 +1,57 @@
+name: Build Go Bindings
+
+on:
+  workflow_call:
+    inputs:
+      repo-name:
+        required: true
+        type: string
+      pkg-suffix:
+        required: true
+        type: string
+      upload-artifacts:
+        required: false
+        type: boolean
+        default: false
+      ffi-libs:
+        required: false
+        type: string
+        default: ""
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  go-bindings:
+    name: Go bindings (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            cgo_os: linux
+            cgo_arch: amd64
+          - os: macos-latest
+            cgo_os: darwin
+            cgo_arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate Go bindings
+        run: make generate-go REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} CGO_OS=${{ matrix.cgo_os }} CGO_ARCH=${{ matrix.cgo_arch }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.upload-artifacts
+        with:
+          name: go-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
+          path: bindings/go/
