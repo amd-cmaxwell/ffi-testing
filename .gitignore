@@ -18,3 +18,4 @@ __pycache__/
 
 # AI
 .cline_storage/
+.claude/
