@@ -61,12 +61,14 @@ jobs:
         run: make generate-python REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
         shell: bash
 
+      # Generated Python source — committed to the repo by the publish-bindings job
       - uses: actions/upload-artifact@v4
         if: inputs.upload-artifacts
         with:
           name: python-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
           path: bindings/python/
 
+      # Compiled wheels — attached to the GitHub Release as downloadable assets
       - uses: actions/upload-artifact@v4
         if: inputs.upload-artifacts
         with:
