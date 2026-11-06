@@ -88,3 +88,29 @@ pub fn quadratic_roots_complex(a: f64, b: f64, c: f64) -> Result<ComplexPair, Ma
         second: r2.into(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_complex_roundtrip_conversion() {
+        let ffi = Complex { re: 3.0, im: 4.0 };
+        let lib: cx::Complex = (&ffi).into();
+        let back: Complex = lib.into();
+        assert_eq!(back.re, ffi.re);
+        assert_eq!(back.im, ffi.im);
+    }
+
+    #[test]
+    fn test_complex_pair_from_quadratic() {
+        let pair = quadratic_roots_complex(1.0, 0.0, -1.0).unwrap();
+        assert!((pair.first.re - 1.0).abs() < 1e-10 || (pair.second.re - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_error_mapping() {
+        let err = quadratic_roots_complex(0.0, 1.0, 1.0).unwrap_err();
+        assert!(matches!(err, MathError::InvalidInput { .. }));
+    }
+}

@@ -45,3 +45,21 @@ pub fn polynomial_multiply(a: Vec<f64>, b: Vec<f64>) -> Vec<f64> {
 pub fn polynomial_derivative(coeffs: Vec<f64>) -> Vec<f64> {
     poly::derivative(&coeffs)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_f64pair_from_quadratic() {
+        let roots = quadratic_roots(1.0, -3.0, 2.0).unwrap();
+        assert!((roots.first - 2.0).abs() < 1e-10 || (roots.first - 1.0).abs() < 1e-10);
+        assert!((roots.second - 2.0).abs() < 1e-10 || (roots.second - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_error_mapping_division_by_zero() {
+        let err = linear_root(0.0, 1.0).unwrap_err();
+        assert!(matches!(err, MathError::DivisionByZero));
+    }
+}

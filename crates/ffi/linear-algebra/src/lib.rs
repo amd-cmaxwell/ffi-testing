@@ -140,3 +140,51 @@ pub fn dot_product(a: Vec<f64>, b: Vec<f64>) -> Result<f64, MathError> {
 pub fn cross_product_3d(a: Point3, b: Point3) -> Point3 {
     la::cross_product_3d((&a).into(), (&b).into()).into()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_matrix2x2_roundtrip_conversion() {
+        let ffi = Matrix2x2 { m00: 1.0, m01: 2.0, m10: 3.0, m11: 4.0 };
+        let arr: [[f64; 2]; 2] = (&ffi).into();
+        let back: Matrix2x2 = arr.into();
+        assert_eq!(back.m00, ffi.m00);
+        assert_eq!(back.m11, ffi.m11);
+    }
+
+    #[test]
+    fn test_point3_roundtrip_conversion() {
+        let ffi = Point3 { x: 1.0, y: 2.0, z: 3.0 };
+        let arr: [f64; 3] = (&ffi).into();
+        let back: Point3 = arr.into();
+        assert_eq!(back.x, ffi.x);
+        assert_eq!(back.y, ffi.y);
+        assert_eq!(back.z, ffi.z);
+    }
+
+    #[test]
+    fn test_solve_2x2_returns_point2() {
+        let a = Matrix2x2 { m00: 1.0, m01: 1.0, m10: 1.0, m11: -1.0 };
+        let b = Point2 { x: 3.0, y: 1.0 };
+        let r = solve_2x2(a, b).unwrap();
+        assert!((r.x - 2.0).abs() < 1e-10);
+        assert!((r.y - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_cross_product_returns_point3() {
+        let a = Point3 { x: 1.0, y: 0.0, z: 0.0 };
+        let b = Point3 { x: 0.0, y: 1.0, z: 0.0 };
+        let r = cross_product_3d(a, b);
+        assert!((r.z - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_error_mapping_singular_matrix() {
+        let a = Matrix2x2 { m00: 1.0, m01: 1.0, m10: 1.0, m11: 1.0 };
+        let b = Point2 { x: 1.0, y: 2.0 };
+        assert!(solve_2x2(a, b).is_err());
+    }
+}
