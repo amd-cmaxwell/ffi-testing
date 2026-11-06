@@ -49,6 +49,14 @@ jobs:
 
       - run: pip install maturin
 
+      - name: Install uniffi-bindgen
+        run: make build-tools-py
+        shell: bash
+
+      - name: Add tools to PATH
+        run: echo "${{ github.workspace }}/.tools/bin" >> $GITHUB_PATH
+        shell: bash
+
       - name: Generate Python bindings
         run: make generate-python REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
         shell: bash
