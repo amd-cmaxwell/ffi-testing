@@ -92,8 +92,8 @@ jobs:
           name: go-bindings-${{ matrix.cgo_os }}-${{ matrix.cgo_arch }}
           path: bindings/go/
 
-  build-wasm-bindings:
-    name: WASM/TS bindings
+  build-js-bindings:
+    name: WASM/TS/JS bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,12 +108,12 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Build, compile, and package WASM/JS bindings
+      - name: Build, compile, and package WASM/TS/JS bindings
         run: make generate-js REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wasm-bindings
+          name: js-bindings
           path: bindings/js/
 
       - uses: actions/upload-artifact@v4
@@ -123,7 +123,7 @@ jobs:
 
   publish-bindings:
     name: Publish bindings
-    needs: [build-go-bindings, build-python-bindings, build-wasm-bindings]
+    needs: [build-go-bindings, build-python-bindings, build-js-bindings]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,7 +157,7 @@ jobs:
       - name: Download WASM binding artifacts
         uses: actions/download-artifact@v4
         with:
-          name: wasm-bindings
+          name: js-bindings
           path: bindings/js
 
       - name: Commit bindings

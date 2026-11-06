@@ -61,10 +61,10 @@ external_packages = { uniffi_testing_types_ffi = "./uniffi_testing_types_ffi" }
 
 ## Pass 4: Update CI workflow (ci.yml)
 
-Add a `wasm-bindings` job following the pattern of `python-bindings` and `go-bindings`:
+Add a `js-bindings` job following the pattern of `python-bindings` and `go-bindings`:
 
 ```yaml
-wasm-bindings:
+js-bindings:
   name: WASM bindings
   needs: rust-test
   runs-on: ubuntu-latest
@@ -92,7 +92,7 @@ Single platform (ubuntu) since WASM is platform-independent.
 
 ## Pass 5: Update Release workflow (release.yml)
 
-**Add `build-wasm-bindings` job:**
+**Add `build-js-bindings` job:**
 - Single platform (ubuntu-latest)
 - Install `wasm32-unknown-unknown` target
 - Run `make generate-wasm`
@@ -104,7 +104,7 @@ Single platform (ubuntu) since WASM is platform-independent.
 
 **Update `release` job:**
 - Add wasm bindings as release assets (tar.gz the `bindings/wasm/` directory)
-- Update `needs` arrays to include `build-wasm-bindings`
+- Update `needs` arrays to include `build-js-bindings`
 
 ## Special considerations
 

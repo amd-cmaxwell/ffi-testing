@@ -95,11 +95,11 @@ export * from './uniffi_testing_core_ffi.js';
 
 ### 6. Update CI (`ci.yml`)
 
-Update `wasm-bindings` job to run `make package-wasm` and verify compiled output.
+Update `js-bindings` job to run `make package-wasm` and verify compiled output.
 
 ### 7. Update Release (`release.yml`)
 
-- `build-wasm-bindings`: run `make package-wasm`, `npm pack` each package
+- `build-js-bindings`: run `make package-wasm`, `npm pack` each package
 - Upload tarballs as artifacts
 - `release` job: attach npm tarballs to GitHub release
 
@@ -107,7 +107,7 @@ Update `wasm-bindings` job to run `make package-wasm` and verify compiled output
 - `Makefile` — fix `generate-wasm` (add `--crate-name`), add `package-wasm`
 - `templates/js/package.json` — new
 - `templates/js/tsconfig.json` — new
-- `.github/workflows/ci.yml` — update wasm-bindings job
+- `.github/workflows/ci.yml` — update js-bindings job
 - `.github/workflows/release.yml` — update build/release jobs
 
 ## Verification
