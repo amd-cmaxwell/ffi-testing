@@ -1,8 +1,7 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,22 +14,26 @@ env:
 
 jobs:
   detect-changes:
-    name: Detect changed FFI crates
+    name: Detect changed crates
     runs-on: ubuntu-latest
     outputs:
       ffi-libs: ${{ steps.diff.outputs.ffi_libs }}
-      has-changes: ${{ steps.diff.outputs.has_changes }}
+      has-ffi-changes: ${{ steps.diff.outputs.has_ffi_changes }}
+      crate-versions: ${{ steps.diff.outputs.crate_versions }}
+      has-crate-changes: ${{ steps.diff.outputs.has_crate_changes }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Find changed FFI crates since last release
+      - name: Find changed crates since last release
         id: diff
         shell: bash
         run: |
           prev_tag=$(git tag --list 'v*' --sort=-v:refname | head -2 | tail -1)
-          changed=()
+
+          # FFI crates (space-separated underscore names)
+          ffi_changed=()
           for ffi_toml in crates/ffi/*/Cargo.toml; do
             crate_dir=$(basename "$(dirname "$ffi_toml")")
             [ "$crate_dir" = "tools" ] && continue
@@ -38,20 +41,42 @@ jobs:
             cur_ver=$(grep '^version' "$ffi_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             prev_ver=$(git show "${prev_tag}:${ffi_toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
             if [ "$cur_ver" != "$prev_ver" ]; then
-              changed+=("$(echo "$crate_dir" | tr '-' '_')")
+              ffi_changed+=("$(echo "$crate_dir" | tr '-' '_')")
             fi
           done
-          if [ ${#changed[@]} -gt 0 ]; then
-            echo "ffi_libs=${changed[*]}" >> "$GITHUB_OUTPUT"
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          if [ ${#ffi_changed[@]} -gt 0 ]; then
+            echo "ffi_libs=${ffi_changed[*]}" >> "$GITHUB_OUTPUT"
+            echo "has_ffi_changes=true" >> "$GITHUB_OUTPUT"
           else
             echo "ffi_libs=" >> "$GITHUB_OUTPUT"
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "has_ffi_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Library crates (JSON object: {"crate-dir": "version", ...})
+          crate_json="{"
+          first=true
+          for toml in crates/*/Cargo.toml; do
+            crate_dir=$(basename "$(dirname "$toml")")
+            cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            prev_ver=$(git show "${prev_tag}:${toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
+            if [ "$cur_ver" != "$prev_ver" ]; then
+              $first || crate_json+=","
+              crate_json+="\"${crate_dir}\":\"${cur_ver}\""
+              first=false
+            fi
+          done
+          crate_json+="}"
+          echo "crate_versions=${crate_json}" >> "$GITHUB_OUTPUT"
+          if [ "$crate_json" = "{}" ]; then
+            echo "has_crate_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_crate_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
   build-python-bindings:
+    name: Build Python bindings
     needs: detect-changes
-    if: needs.detect-changes.outputs.has-changes == 'true'
+    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-python-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -61,8 +86,9 @@ jobs:
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
   build-go-bindings:
+    name: Build Go bindings
     needs: detect-changes
-    if: needs.detect-changes.outputs.has-changes == 'true'
+    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-go-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -72,8 +98,9 @@ jobs:
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
   build-js-bindings:
+    name: Build JS bindings
     needs: detect-changes
-    if: needs.detect-changes.outputs.has-changes == 'true'
+    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-js-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -86,7 +113,7 @@ jobs:
   publish-bindings:
     name: Publish bindings
     needs: [detect-changes, build-go-bindings, build-python-bindings, build-js-bindings]
-    if: needs.detect-changes.outputs.has-changes == 'true'
+    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,10 +125,9 @@ jobs:
           suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
           echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
           echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
-          npm_scope=$(make -s -p REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} 2>/dev/null | grep '^NPM_SCOPE ' | head -1 | awk '{print $3}')
+          npm_scope=$(make -s -p REPO_OWNER=${{ env.REPO_OWNER}} REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} 2>/dev/null | grep '^NPM_SCOPE ' | head -1 | awk '{print $3}')
           echo "NPM_SCOPE=${npm_scope}" >> "$GITHUB_ENV"
-          mods=$(sed -n '/^members/,/]/p' Cargo.toml | grep 'crates/ffi/' | sed 's|.*"crates/ffi/\([^"]*\)".*|\1|' | tr '-' '_' | tr '\n' ' ')
-          echo "FFI_MODULES=${mods}" >> "$GITHUB_ENV"
+          echo "FFI_MODULES=${{ needs.detect-changes.outputs.ffi-libs }}" >> "$GITHUB_ENV"
 
       - name: Download Go binding artifacts
         uses: actions/download-artifact@v4
@@ -123,7 +149,10 @@ jobs:
           name: js-bindings
           path: bindings/js
 
-      - name: Commit bindings
+      - name: Commit FFI bindings
+        shell: bash
+        env:
+          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -135,10 +164,10 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update bindings for ${GITHUB_REF_NAME}"
+            summary=$(echo "$CRATE_VERSIONS" | jq -r 'to_entries | map("\(.key) v\(.value)") | join(", ")')
+            git commit -m "chore: Commit FFI bindings for ${summary}"
             git push origin HEAD:main
           fi
-        shell: bash
 
       - name: Tag Go modules
         run: |
@@ -157,11 +186,16 @@ jobs:
           git push origin --tags
         shell: bash
 
-  release:
-    name: Publish GitHub Release
-    needs: [publish-bindings]
+  release-rust-crates:
+    name: Release Rust crates
+    needs: [detect-changes, publish-bindings]
+    if: needs.detect-changes.outputs.has-crate-changes == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           path: wheels
@@ -173,14 +207,39 @@ jobs:
           name: npm-tarballs
           path: npm-tarballs
 
-      - name: List artifacts
+      - name: Create per-crate releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
         run: |
-          ls -la wheels/
-          ls -la npm-tarballs/
+          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
+          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          tags=()
+          for crate_dir in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
+            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_dir" '.[$k]')
+            tag="crates/${crate_dir}/v${cur_ver}"
+            if git rev-parse "${tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${tag} already exists"
+              exit 1
+            fi
+            git tag "${tag}"
+            tags+=("${tag}")
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            wheels/*.whl
-            npm-tarballs/*.tgz
-          generate_release_notes: true
+            crate_us=$(echo "$crate_dir" | tr '-' '_')
+            wheel_pattern="${repo_us}_${crate_us}${suffix_us}"
+            tarball_pattern="${REPO_NAME}-${crate_dir}${PKG_SUFFIX}"
+            assets=()
+            while IFS= read -r f; do
+              [ -n "$f" ] && assets+=("$f")
+            done < <(find wheels/ -name "*${wheel_pattern}*" -type f 2>/dev/null)
+            while IFS= read -r f; do
+              [ -n "$f" ] && assets+=("$f")
+            done < <(find npm-tarballs/ -name "*${tarball_pattern}*" -type f 2>/dev/null)
+
+            echo "  releasing ${tag} with ${#assets[@]} artifact(s)"
+            gh release create "${tag}" "${assets[@]}" \
+              --title "${crate_dir} v${cur_ver}" \
+              --generate-notes
+          done
+          git push origin --tags
