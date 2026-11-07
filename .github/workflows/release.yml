@@ -128,9 +128,17 @@ jobs:
             echo "has_crate_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
+  check-ffi-versions:
+    name: Check FFI crate versions
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
+    uses: ./.github/workflows/check-ffi-versions.yml
+    with:
+      ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
+
   build-python-bindings:
     name: Build Python bindings
-    needs: detect-changes
+    needs: [detect-changes, check-ffi-versions]
     if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-python-bindings.yml
     with:
@@ -142,7 +150,7 @@ jobs:
 
   build-go-bindings:
     name: Build Go bindings
-    needs: detect-changes
+    needs: [detect-changes, check-ffi-versions]
     if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-go-bindings.yml
     with:
@@ -154,7 +162,7 @@ jobs:
 
   build-js-bindings:
     name: Build JS bindings
-    needs: detect-changes
+    needs: [detect-changes, check-ffi-versions]
     if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-js-bindings.yml
     with:

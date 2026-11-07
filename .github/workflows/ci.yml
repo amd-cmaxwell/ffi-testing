@@ -23,6 +23,10 @@ jobs:
           echo "::notice::Checking FFI coverage: origin/${{ github.base_ref }}...${{ github.sha }}"
           ./scripts/check-ffi-coverage.sh origin/${{ github.base_ref }} ${{ github.sha }}
 
+  check-ffi-versions:
+    name: Check FFI crate versions
+    uses: ./.github/workflows/check-ffi-versions.yml
+
   rust-test:
     name: Rust tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -38,7 +42,7 @@ jobs:
 
   python-bindings:
     name: Build Python Bindings
-    needs: rust-test
+    needs: [rust-test, check-ffi-versions]
     uses: ./.github/workflows/build-python-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -47,7 +51,7 @@ jobs:
 
   go-bindings:
     name: Build Go Bindings
-    needs: rust-test
+    needs: [rust-test, check-ffi-versions]
     uses: ./.github/workflows/build-go-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -56,7 +60,7 @@ jobs:
 
   js-bindings:
     name: Build JS Bindings
-    needs: rust-test
+    needs: [rust-test, check-ffi-versions]
     uses: ./.github/workflows/build-js-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
