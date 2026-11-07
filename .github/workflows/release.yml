@@ -312,11 +312,11 @@ jobs:
             body=$(./scripts/release-body.sh "${tag}" "${assets[@]}")
             if [ -n "$body" ]; then
               gh release create "${tag}" "${assets[@]}" \
-                --title "${crate_dir} v${cur_ver}" \
+                --title "${REPO_NAME}-${crate_dir} v${cur_ver}" \
                 --notes "$body"
             else
               gh release create "${tag}" "${assets[@]}" \
-                --title "${crate_dir} v${cur_ver}" \
+                --title "${REPO_NAME}-${crate_dir} v${cur_ver}" \
                 --generate-notes
             fi
           done

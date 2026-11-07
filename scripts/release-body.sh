@@ -18,8 +18,8 @@ fi
 cat <<'HEADER'
 ## 📦 Assets by Platform
 
-| Platform | Architecture | Asset |
-| :--- | :--- | :--- |
+| Language | Platform | Architecture | Asset |
+| :--- | :--- | :--- | :--- |
 HEADER
 
 for asset in "${assets[@]}"; do
@@ -27,18 +27,18 @@ for asset in "${assets[@]}"; do
   link="[${fname}](${repo_url}/releases/download/${tag}/${fname})"
 
   if echo "$fname" | grep -qi 'manylinux.*x86_64'; then
-    echo "| **Linux** | x86_64 | ${link} |"
+    echo "| **Python** | Linux | x86_64 | ${link} |"
   elif echo "$fname" | grep -qi 'manylinux.*aarch64'; then
-    echo "| **Linux** | aarch64 | ${link} |"
+    echo "| **Python** | Linux | aarch64 | ${link} |"
   elif echo "$fname" | grep -qi 'macosx.*arm64'; then
-    echo "| **macOS** | Apple Silicon | ${link} |"
+    echo "| **Python** | macOS | Apple Silicon | ${link} |"
   elif echo "$fname" | grep -qi 'macosx.*x86_64'; then
-    echo "| **macOS** | Intel | ${link} |"
+    echo "| **Python** | macOS | Intel | ${link} |"
   elif echo "$fname" | grep -qi 'win.*amd64\|windows.*x86_64'; then
-    echo "| **Windows** | x64 | ${link} |"
+    echo "| **Python** | Windows | x64 | ${link} |"
   elif echo "$fname" | grep -qi '\.tgz$'; then
-    echo "| **npm** | All | ${link} |"
+    echo "| **JS/TS** | All | All | ${link} |"
   else
-    echo "| — | — | ${link} |"
+    echo "| — | — | — | ${link} |"
   fi
 done
