@@ -35,6 +35,7 @@ jobs:
       - run: cargo test --workspace
 
   python-bindings:
+    name: Build Python Bindings
     needs: rust-test
     uses: ./.github/workflows/build-python-bindings.yml
     with:
@@ -43,6 +44,7 @@ jobs:
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
 
   go-bindings:
+    name: Build Go Bindings
     needs: rust-test
     uses: ./.github/workflows/build-go-bindings.yml
     with:
@@ -51,6 +53,7 @@ jobs:
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
 
   js-bindings:
+    name: Build JS Bindings
     needs: rust-test
     uses: ./.github/workflows/build-js-bindings.yml
     with:
