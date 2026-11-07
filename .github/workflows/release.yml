@@ -14,8 +14,33 @@ env:
   NPM_SCOPE: ${{ vars.NPM_SCOPE }}
 
 jobs:
+  ci-gate:
+    name: Verify CI passed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CI status on HEAD
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="${{ github.sha }}"
+          echo "::notice::Checking CI status for ${sha}"
+          status=$(gh api "repos/${{ github.repository }}/commits/${sha}/check-runs" \
+            --jq '[.check_runs[] | select(.app.slug == "github-actions")] |
+              if length == 0 then "none"
+              elif all(.conclusion == "success" or .conclusion == "skipped") then "pass"
+              else "fail" end')
+          if [ "$status" = "none" ]; then
+            echo "::error::No CI runs found for commit ${sha}. Push to main and wait for CI to pass before releasing."
+            exit 1
+          elif [ "$status" != "pass" ]; then
+            echo "::error::CI has not passed on commit ${sha}. Fix CI before releasing."
+            exit 1
+          fi
+          echo "::notice::CI passed on ${sha}"
+
   detect-changes:
     name: Detect changed crates
+    needs: ci-gate
     runs-on: ubuntu-latest
     outputs:
       ffi-libs: ${{ steps.diff.outputs.ffi_libs }}
