@@ -308,9 +308,17 @@ jobs:
               echo "::warning::No artifacts matched for ${crate_path} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
             fi
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
-            gh release create "${tag}" "${assets[@]}" \
-              --title "${crate_dir} v${cur_ver}" \
-              --generate-notes
+
+            body=$(./scripts/release-body.sh "${tag}" "${assets[@]}")
+            if [ -n "$body" ]; then
+              gh release create "${tag}" "${assets[@]}" \
+                --title "${crate_dir} v${cur_ver}" \
+                --notes "$body"
+            else
+              gh release create "${tag}" "${assets[@]}" \
+                --title "${crate_dir} v${cur_ver}" \
+                --generate-notes
+            fi
           done
 
   tag-go-modules:
