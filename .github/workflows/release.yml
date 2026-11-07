@@ -33,27 +33,83 @@ jobs:
         run: |
           set -euo pipefail
 
-          prev_tag=$(git tag --list 'v*' --sort=-v:refname | head -2 | tail -1)
-          if [ -z "$prev_tag" ]; then
-            echo "::warning::No previous v* tag found — treating all crates as changed"
-            prev_tag="__none__"
-          else
-            echo "::notice::Comparing against previous tag: ${prev_tag}"
-          fi
+          # Look up the most recent tag for a given crate path prefix
+          latest_tag_for() {
+            local prefix="$1"
+            git tag --list "${prefix}/v*" --sort=-v:refname | head -1
+          }
 
-          # FFI crates (space-separated underscore names)
-          ffi_changed=()
-          for ffi_toml in crates/ffi/*/Cargo.toml; do
-            crate_dir=$(basename "$(dirname "$ffi_toml")")
-            [ "$crate_dir" = "tools" ] && continue
-            [ "$crate_dir" = "types" ] && continue
-            cur_ver=$(grep '^version' "$ffi_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
-            prev_ver=$(git show "${prev_tag}:${ffi_toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
+          # Extract the version at a given tag, or empty if the tag/file doesn't exist
+          version_at_tag() {
+            local tag="$1" toml="$2"
+            if [ -z "$tag" ]; then
+              echo ""
+            else
+              git show "${tag}:${toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo ""
+            fi
+          }
+
+          # Pass 1: Library crates — always produce a release when changed
+          changed_libs=()
+          crate_json="{"
+          first=true
+
+          for toml in crates/*/Cargo.toml; do
+            [ -f "$toml" ] || continue
+            crate_path=$(dirname "$toml")
+            crate_dir=$(basename "$crate_path")
+
+            prev_tag=$(latest_tag_for "${crate_path}")
+            cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            prev_ver=$(version_at_tag "$prev_tag" "$toml")
+
             if [ "$cur_ver" != "$prev_ver" ]; then
-              echo "::notice::FFI crate changed: ${crate_dir} ${prev_ver:-<new>} -> ${cur_ver}"
-              ffi_changed+=("$(echo "$crate_dir" | tr '-' '_')")
+              echo "::notice::Library crate changed: ${crate_path} ${prev_ver:-<new>} -> ${cur_ver} (prev tag: ${prev_tag:-none})"
+              changed_libs+=("$crate_dir")
+              $first || crate_json+=","
+              crate_json+="\"${crate_path}\":\"${cur_ver}\""
+              first=false
             fi
           done
+
+          # Pass 2: FFI crates — always tracked for binding generation,
+          # but only produce a release if the corresponding lib crate didn't change
+          ffi_changed=()
+
+          for toml in crates/ffi/*/Cargo.toml; do
+            [ -f "$toml" ] || continue
+            crate_path=$(dirname "$toml")
+            crate_dir=$(basename "$crate_path")
+            [ "$crate_dir" = "tools" ] && continue
+
+            prev_tag=$(latest_tag_for "${crate_path}")
+            cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            prev_ver=$(version_at_tag "$prev_tag" "$toml")
+
+            if [ "$cur_ver" != "$prev_ver" ]; then
+              ffi_changed+=("$(echo "$crate_dir" | tr '-' '_')")
+
+              # Only add to release map if the lib crate didn't already change
+              lib_already_changed=false
+              for lib in "${changed_libs[@]}"; do
+                if [ "$lib" = "$crate_dir" ]; then
+                  lib_already_changed=true
+                  break
+                fi
+              done
+              if $lib_already_changed; then
+                echo "::notice::FFI crate changed: ${crate_path} ${prev_ver:-<new>} -> ${cur_ver} (covered by lib crate release)"
+              else
+                echo "::notice::FFI-only crate changed: ${crate_path} ${prev_ver:-<new>} -> ${cur_ver} (prev tag: ${prev_tag:-none})"
+                $first || crate_json+=","
+                crate_json+="\"${crate_path}\":\"${cur_ver}\""
+                first=false
+              fi
+            fi
+          done
+
+          crate_json+="}"
+
           if [ ${#ffi_changed[@]} -gt 0 ]; then
             echo "ffi_libs=${ffi_changed[*]}" >> "$GITHUB_OUTPUT"
             echo "has_ffi_changes=true" >> "$GITHUB_OUTPUT"
@@ -63,24 +119,9 @@ jobs:
             echo "has_ffi_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-          # Library crates (JSON object: {"crate-dir": "version", ...})
-          crate_json="{"
-          first=true
-          for toml in crates/*/Cargo.toml; do
-            crate_dir=$(basename "$(dirname "$toml")")
-            cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
-            prev_ver=$(git show "${prev_tag}:${toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
-            if [ "$cur_ver" != "$prev_ver" ]; then
-              echo "::notice::Library crate changed: ${crate_dir} ${prev_ver:-<new>} -> ${cur_ver}"
-              $first || crate_json+=","
-              crate_json+="\"${crate_dir}\":\"${cur_ver}\""
-              first=false
-            fi
-          done
-          crate_json+="}"
           echo "crate_versions=${crate_json}" >> "$GITHUB_OUTPUT"
           if [ "$crate_json" = "{}" ]; then
-            echo "::notice::No library crate version changes detected"
+            echo "::notice::No crate version changes detected"
             echo "has_crate_changes=false" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::crate-versions=${crate_json}"
@@ -254,9 +295,10 @@ jobs:
           ls -1 npm-tarballs/ 2>/dev/null || echo "::warning::npm-tarballs/ directory not found"
 
           tags=()
-          for crate_dir in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
-            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_dir" '.[$k]')
-            tag="crates/${crate_dir}/v${cur_ver}"
+          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
+            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
+            crate_dir=$(basename "$crate_path")
+            tag="${crate_path}/v${cur_ver}"
             if git rev-parse "${tag}" >/dev/null 2>&1; then
               echo "::error::Tag ${tag} already exists"
               exit 1
@@ -276,7 +318,7 @@ jobs:
             done < <(find npm-tarballs/ -name "*${tarball_pattern}*" -type f 2>/dev/null)
 
             if [ ${#assets[@]} -eq 0 ]; then
-              echo "::warning::No artifacts matched for ${crate_dir} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
+              echo "::warning::No artifacts matched for ${crate_path} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
             fi
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
             gh release create "${tag}" "${assets[@]}" \
