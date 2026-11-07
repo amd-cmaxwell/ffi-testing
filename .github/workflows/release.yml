@@ -255,6 +255,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Package modified crates
+        shell: bash
+        env:
+          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+        run: |
+          set -euo pipefail
+          echo "::group::cargo package"
+          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
+            case "$crate_path" in
+              crates/ffi/*) echo "::notice::Skipping FFI crate ${crate_path}"; continue ;;
+            esac
+            echo "::notice::Packaging ${crate_path}"
+            cargo package --manifest-path "${crate_path}/Cargo.toml" --allow-dirty
+          done
+          echo "::endgroup::"
+          echo "::notice::Packaged crates:"
+          ls -1 target/package/*.crate 2>/dev/null || echo "::warning::No .crate files found"
+
       - uses: actions/download-artifact@v4
         with:
           path: wheels
@@ -307,6 +328,17 @@ jobs:
             if [ ${#assets[@]} -eq 0 ]; then
               echo "::warning::No artifacts matched for ${crate_path} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
             fi
+            
+            case "$crate_path" in
+              crates/ffi/*) ;;
+              *)
+                crate_name=$(grep '^name' "${crate_path}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+                while IFS= read -r f; do
+                  [ -n "$f" ] && assets+=("$f")
+                done < <(find target/package/ -maxdepth 1 -name "${crate_name}-${cur_ver}.crate" -type f 2>/dev/null)
+                ;;
+            esac
+            
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
 
             body=$(./scripts/release-body.sh "${tag}" "${assets[@]}")

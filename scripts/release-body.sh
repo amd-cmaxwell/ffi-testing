@@ -38,6 +38,8 @@ for asset in "${assets[@]}"; do
     echo "| **Python** | Windows | x64 | ${link} |"
   elif echo "$fname" | grep -qi '\.tgz$'; then
     echo "| **JS/TS** | All | All | ${link} |"
+  elif echo "$fname" | grep -qi '\.crate$'; then
+    echo "| **Rust** | All | All | ${link} |"
   else
     echo "| — | — | — | ${link} |"
   fi
