@@ -304,7 +304,7 @@ jobs:
               exit 1
             fi
             git tag "${tag}"
-            tags+=("${tag}")
+            git push origin "${tag}"
 
             crate_us=$(echo "$crate_dir" | tr '-' '_')
             wheel_pattern="${repo_us}_${crate_us}${suffix_us}"
@@ -325,4 +325,3 @@ jobs:
               --title "${crate_dir} v${cur_ver}" \
               --generate-notes
           done
-          git push origin --tags
