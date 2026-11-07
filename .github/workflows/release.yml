@@ -11,6 +11,7 @@ env:
   REPO_OWNER: ${{ vars.REPO_OWNER }}
   REPO_NAME: ${{ vars.REPO_NAME }}
   PKG_SUFFIX: ${{ vars.PKG_SUFFIX }}
+  NPM_SCOPE: ${{ vars.NPM_SCOPE }}
 
 jobs:
   detect-changes:
@@ -30,7 +31,15 @@ jobs:
         id: diff
         shell: bash
         run: |
+          set -euo pipefail
+
           prev_tag=$(git tag --list 'v*' --sort=-v:refname | head -2 | tail -1)
+          if [ -z "$prev_tag" ]; then
+            echo "::warning::No previous v* tag found — treating all crates as changed"
+            prev_tag="__none__"
+          else
+            echo "::notice::Comparing against previous tag: ${prev_tag}"
+          fi
 
           # FFI crates (space-separated underscore names)
           ffi_changed=()
@@ -41,6 +50,7 @@ jobs:
             cur_ver=$(grep '^version' "$ffi_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             prev_ver=$(git show "${prev_tag}:${ffi_toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
             if [ "$cur_ver" != "$prev_ver" ]; then
+              echo "::notice::FFI crate changed: ${crate_dir} ${prev_ver:-<new>} -> ${cur_ver}"
               ffi_changed+=("$(echo "$crate_dir" | tr '-' '_')")
             fi
           done
@@ -48,6 +58,7 @@ jobs:
             echo "ffi_libs=${ffi_changed[*]}" >> "$GITHUB_OUTPUT"
             echo "has_ffi_changes=true" >> "$GITHUB_OUTPUT"
           else
+            echo "::notice::No FFI crate version changes detected"
             echo "ffi_libs=" >> "$GITHUB_OUTPUT"
             echo "has_ffi_changes=false" >> "$GITHUB_OUTPUT"
           fi
@@ -60,6 +71,7 @@ jobs:
             cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             prev_ver=$(git show "${prev_tag}:${toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/' || echo "")
             if [ "$cur_ver" != "$prev_ver" ]; then
+              echo "::notice::Library crate changed: ${crate_dir} ${prev_ver:-<new>} -> ${cur_ver}"
               $first || crate_json+=","
               crate_json+="\"${crate_dir}\":\"${cur_ver}\""
               first=false
@@ -68,8 +80,10 @@ jobs:
           crate_json+="}"
           echo "crate_versions=${crate_json}" >> "$GITHUB_OUTPUT"
           if [ "$crate_json" = "{}" ]; then
+            echo "::notice::No library crate version changes detected"
             echo "has_crate_changes=false" >> "$GITHUB_OUTPUT"
           else
+            echo "::notice::crate-versions=${crate_json}"
             echo "has_crate_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -121,13 +135,17 @@ jobs:
       - name: Derive FFI modules
         shell: bash
         run: |
+          set -euo pipefail
           repo_us=$(echo "$REPO_NAME" | tr '-' '_')
           suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          npm_scope="${NPM_SCOPE:-@${REPO_OWNER}}"
+          ffi_modules="${{ needs.detect-changes.outputs.ffi-libs }}"
           echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
           echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
-          npm_scope=$(make -s -p REPO_OWNER=${{ env.REPO_OWNER}} REPO_NAME=${{ env.REPO_NAME }} PKG_SUFFIX=${{ env.PKG_SUFFIX }} 2>/dev/null | grep '^NPM_SCOPE ' | head -1 | awk '{print $3}')
           echo "NPM_SCOPE=${npm_scope}" >> "$GITHUB_ENV"
-          echo "FFI_MODULES=${{ needs.detect-changes.outputs.ffi-libs }}" >> "$GITHUB_ENV"
+          echo "FFI_MODULES=${ffi_modules}" >> "$GITHUB_ENV"
+          echo "::notice::REPO_NAME_US=${repo_us} PKG_SUFFIX_US=${suffix_us} NPM_SCOPE=${npm_scope}"
+          echo "::notice::FFI_MODULES=${ffi_modules}"
 
       - name: Download Go binding artifacts
         uses: actions/download-artifact@v4
@@ -154,6 +172,7 @@ jobs:
         env:
           CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add bindings/go/ bindings/python/
@@ -162,25 +181,35 @@ jobs:
           git add 'bindings/js/'"${NPM_SCOPE}"'/*/tsconfig.json'
           git add 'bindings/js/'"${NPM_SCOPE}"'/*/src/'
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "::warning::No binding changes to commit"
           else
             summary=$(echo "$CRATE_VERSIONS" | jq -r 'to_entries | map("\(.key) v\(.value)") | join(", ")')
+            echo "::notice::Committing bindings for: ${summary}"
             git commit -m "chore: Commit FFI bindings for ${summary}"
             git push origin HEAD:main
           fi
 
       - name: Tag Go modules
         run: |
+          set -euo pipefail
+          if [ -z "$FFI_MODULES" ]; then
+            echo "::warning::FFI_MODULES is empty — no Go module tags to create"
+            exit 0
+          fi
           for mod in $FFI_MODULES; do
             crate_dir=$(echo "$mod" | tr '_' '-')
             pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             tag="bindings/go/${pkg}/v${version}"
+            if [ -z "$version" ]; then
+              echo "::error::Could not parse version from crates/ffi/${crate_dir}/Cargo.toml"
+              exit 1
+            fi
             if git rev-parse "${tag}" >/dev/null 2>&1; then
               echo "::error::Tag ${tag} already exists"
               exit 1
             fi
-            echo "  tagging ${tag}"
+            echo "::notice::Tagging Go module: ${tag}"
             git tag "${tag}"
           done
           git push origin --tags
@@ -213,8 +242,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
         run: |
+          set -euo pipefail
           repo_us=$(echo "$REPO_NAME" | tr '-' '_')
           suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          echo "::notice::Artifact matching patterns — wheels: *\${repo_us}_\${crate_us}\${suffix_us}* | tarballs: *\${REPO_NAME}-\${crate_dir}\${PKG_SUFFIX}*"
+          echo "::notice::Available wheels:"
+          ls -1 wheels/ 2>/dev/null || echo "::warning::wheels/ directory not found"
+          echo "::notice::Available npm tarballs:"
+          ls -1 npm-tarballs/ 2>/dev/null || echo "::warning::npm-tarballs/ directory not found"
+
           tags=()
           for crate_dir in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
             cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_dir" '.[$k]')
@@ -237,7 +273,10 @@ jobs:
               [ -n "$f" ] && assets+=("$f")
             done < <(find npm-tarballs/ -name "*${tarball_pattern}*" -type f 2>/dev/null)
 
-            echo "  releasing ${tag} with ${#assets[@]} artifact(s)"
+            if [ ${#assets[@]} -eq 0 ]; then
+              echo "::warning::No artifacts matched for ${crate_dir} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
+            fi
+            echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
             gh release create "${tag}" "${assets[@]}" \
               --title "${crate_dir} v${cur_ver}" \
               --generate-notes

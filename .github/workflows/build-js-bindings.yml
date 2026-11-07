@@ -62,12 +62,26 @@ jobs:
         shell: bash
 
       - name: Build JS/TS/WASM bindings
-        run: make ${{ inputs.make-target }}
+        run: |
+          echo "::notice::Inputs — REPO_OWNER=${{ inputs.repo-owner }} REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} FFI_LIBS=${{ inputs.ffi-libs }}"
+          echo "::notice::Make target: ${{ inputs.make-target }}"
+          make ${{ inputs.make-target }}
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
           PKG_SUFFIX: ${{ inputs.pkg-suffix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
+
+      - name: List generated artifacts
+        if: inputs.upload-artifacts
+        shell: bash
+        run: |
+          echo "::group::JS bindings"
+          find bindings/js/ -type f \( -name '*.ts' -o -name '*.js' -o -name 'package.json' \) | head -50 || echo "::warning::No JS bindings found"
+          echo "::endgroup::"
+          echo "::group::npm tarballs"
+          ls -lh dist/npm/*.tgz 2>/dev/null || echo "::warning::No npm tarballs found in dist/npm/"
+          echo "::endgroup::"
 
       - uses: actions/upload-artifact@v4
         if: inputs.upload-artifacts

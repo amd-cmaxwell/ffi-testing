@@ -69,13 +69,26 @@ jobs:
         shell: bash
 
       - name: Generate Python bindings
-        run: make generate-python
+        run: |
+          echo "::notice::Inputs — REPO_OWNER=${{ inputs.repo-owner }} REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} FFI_LIBS=${{ inputs.ffi-libs }}"
+          make generate-python
         shell: bash
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
           PKG_SUFFIX: ${{ inputs.pkg-suffix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
+
+      - name: List generated artifacts
+        if: inputs.upload-artifacts
+        shell: bash
+        run: |
+          echo "::group::Python bindings"
+          find bindings/python/ -type f -name '*.py' | head -50 || echo "::warning::No Python bindings found"
+          echo "::endgroup::"
+          echo "::group::Python wheels"
+          ls -lh dist/pypi/*.whl 2>/dev/null || echo "::warning::No wheels found in dist/pypi/"
+          echo "::endgroup::"
 
       # Generated Python source — committed to the repo by the publish-bindings job
       - uses: actions/upload-artifact@v4

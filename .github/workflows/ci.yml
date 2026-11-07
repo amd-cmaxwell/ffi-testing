@@ -19,7 +19,9 @@ jobs:
         with:
           fetch-depth: 0
       - name: Check library changes have FFI updates
-        run: ./scripts/check-ffi-coverage.sh origin/${{ github.base_ref }} ${{ github.sha }}
+        run: |
+          echo "::notice::Checking FFI coverage: origin/${{ github.base_ref }}...${{ github.sha }}"
+          ./scripts/check-ffi-coverage.sh origin/${{ github.base_ref }} ${{ github.sha }}
 
   rust-test:
     name: Rust tests (${{ matrix.os }})
