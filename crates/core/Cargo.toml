@@ -1,4 +1,7 @@
 [package]
 name = "uniffi-testing-core"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core math types and operations"

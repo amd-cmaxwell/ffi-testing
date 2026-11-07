@@ -1,7 +1,10 @@
 [package]
 name = "uniffi-testing-core-ffi"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "UniFFI bindings for uniffi-testing-core"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
@@ -11,6 +14,6 @@ name = "uniffi_testing_core_ffi"
 wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-fns", "dep:uniffi-runtime-wasm"]
 
 [dependencies]
-uniffi = { version = "0.31" }
-uniffi-runtime-wasm = { version = "0.31.0-6", optional = true }
-uniffi-testing-core = { path = "../../core" }
+uniffi.workspace = true
+uniffi-runtime-wasm = { workspace = true, optional = true }
+uniffi-testing-core.workspace = true

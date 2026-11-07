@@ -1,7 +1,10 @@
 [package]
 name = "uniffi-testing-linear-algebra"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Linear algebra operations"
 
 [dependencies]
-uniffi-testing-core = { path = "../core" }
+uniffi-testing-core.workspace = true

@@ -136,10 +136,20 @@ jobs:
     with:
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
+  check-workspace-versions:
+    name: Check workspace dependency versions
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has-crate-changes == 'true'
+    uses: ./.github/workflows/check-workspace-versions.yml
+    with:
+      ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
+
   build-python-bindings:
     name: Build Python bindings
-    needs: [detect-changes, check-ffi-versions]
-    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
+    needs: [detect-changes, check-ffi-versions, check-workspace-versions]
+    if: |
+      !failure() && !cancelled() &&
+      needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-python-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -150,8 +160,10 @@ jobs:
 
   build-go-bindings:
     name: Build Go bindings
-    needs: [detect-changes, check-ffi-versions]
-    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
+    needs: [detect-changes, check-ffi-versions, check-workspace-versions]
+    if: |
+      !failure() && !cancelled() &&
+      needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-go-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -162,8 +174,10 @@ jobs:
 
   build-js-bindings:
     name: Build JS bindings
-    needs: [detect-changes, check-ffi-versions]
-    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
+    needs: [detect-changes, check-ffi-versions, check-workspace-versions]
+    if: |
+      !failure() && !cancelled() &&
+      needs.detect-changes.outputs.has-ffi-changes == 'true'
     uses: ./.github/workflows/build-js-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -255,27 +269,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Package modified crates
-        shell: bash
-        env:
-          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
-        run: |
-          set -euo pipefail
-          echo "::group::cargo package"
-          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
-            case "$crate_path" in
-              crates/ffi/*) echo "::notice::Skipping FFI crate ${crate_path}"; continue ;;
-            esac
-            echo "::notice::Packaging ${crate_path}"
-            cargo package --manifest-path "${crate_path}/Cargo.toml" --allow-dirty
-          done
-          echo "::endgroup::"
-          echo "::notice::Packaged crates:"
-          ls -1 target/package/*.crate 2>/dev/null || echo "::warning::No .crate files found"
-
       - uses: actions/download-artifact@v4
         with:
           path: wheels
@@ -328,17 +321,6 @@ jobs:
             if [ ${#assets[@]} -eq 0 ]; then
               echo "::warning::No artifacts matched for ${crate_path} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
             fi
-            
-            case "$crate_path" in
-              crates/ffi/*) ;;
-              *)
-                crate_name=$(grep '^name' "${crate_path}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
-                while IFS= read -r f; do
-                  [ -n "$f" ] && assets+=("$f")
-                done < <(find target/package/ -maxdepth 1 -name "${crate_name}-${cur_ver}.crate" -type f 2>/dev/null)
-                ;;
-            esac
-            
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
 
             body=$(./scripts/release-body.sh "${tag}" "${assets[@]}")
@@ -465,6 +447,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout main
+          git reset --hard origin/main
           head_sha=$(git rev-parse HEAD)
           if [ "$head_sha" != "$BINDINGS_COMMIT" ]; then
             echo "::error::HEAD on main (${head_sha}) is not the bindings commit (${BINDINGS_COMMIT}) — skipping revert to avoid data loss"

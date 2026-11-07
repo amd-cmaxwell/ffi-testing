@@ -18,3 +18,27 @@ exclude = [
     "crates/ffi/tools",
 ]
 resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/amd-cmaxwell/ffi-testing"
+description = "UniFFI testing monorepo"
+
+# version required for cargo publish — must match each crate's [package].version
+[workspace.dependencies]
+uniffi-testing-core = { path = "crates/core", version = "0.1.0" }
+uniffi-testing-complex = { path = "crates/complex", version = "0.1.0" }
+uniffi-testing-polynomials = { path = "crates/polynomials", version = "0.1.0" }
+uniffi-testing-linear-algebra = { path = "crates/linear-algebra", version = "0.1.0" }
+uniffi-testing-trig = { path = "crates/trig", version = "0.1.0" }
+uniffi-testing-sequences = { path = "crates/sequences", version = "0.1.0" }
+uniffi-testing-core-ffi = { path = "crates/ffi/core", version = "0.1.0" }
+uniffi-testing-complex-ffi = { path = "crates/ffi/complex", version = "0.1.0" }
+uniffi-testing-polynomials-ffi = { path = "crates/ffi/polynomials", version = "0.1.0" }
+uniffi-testing-linear-algebra-ffi = { path = "crates/ffi/linear-algebra", version = "0.1.0" }
+uniffi-testing-trig-ffi = { path = "crates/ffi/trig", version = "0.1.0" }
+uniffi-testing-sequences-ffi = { path = "crates/ffi/sequences", version = "0.1.0" }
+uniffi-testing-types-ffi = { path = "crates/ffi/types", version = "0.1.0" }
+uniffi = { version = "0.31" }
+uniffi-runtime-wasm = { version = "0.31.0-6" }

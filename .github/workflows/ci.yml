@@ -27,6 +27,10 @@ jobs:
     name: Check FFI crate versions
     uses: ./.github/workflows/check-ffi-versions.yml
 
+  check-workspace-versions:
+    name: Check workspace dependency versions
+    uses: ./.github/workflows/check-workspace-versions.yml
+
   rust-test:
     name: Rust tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -42,7 +46,7 @@ jobs:
 
   python-bindings:
     name: Build Python Bindings
-    needs: [rust-test, check-ffi-versions]
+    needs: [rust-test, check-ffi-versions, check-workspace-versions]
     uses: ./.github/workflows/build-python-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -51,7 +55,7 @@ jobs:
 
   go-bindings:
     name: Build Go Bindings
-    needs: [rust-test, check-ffi-versions]
+    needs: [rust-test, check-ffi-versions, check-workspace-versions]
     uses: ./.github/workflows/build-go-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
@@ -60,7 +64,7 @@ jobs:
 
   js-bindings:
     name: Build JS Bindings
-    needs: [rust-test, check-ffi-versions]
+    needs: [rust-test, check-ffi-versions, check-workspace-versions]
     uses: ./.github/workflows/build-js-bindings.yml
     with:
       repo-owner: ${{ vars.REPO_OWNER }}

@@ -15,7 +15,7 @@
 # or NPM_SCOPE as needed.
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: build test \
+.PHONY: setup build test \
        python-dependencies js-dependencies install-node \
        build-tools-py build-tools-go build-tools-wasm \
        generate-python generate-go generate-wasm-ts generate-all \
@@ -114,6 +114,12 @@ UNIFFI_BINDGEN    := $(TOOLS_DIR)/bin/uniffi-bindgen
 UNIFFI_BINDGEN_GO := $(TOOLS_DIR)/bin/uniffi-bindgen-go
 UNIFFI_BINDGEN_RN := $(TOOLS_DIR)/bin/uniffi-bindgen-react-native
 UNIFFI_TOML_FILES := uniffi.toml $(wildcard crates/ffi/*/uniffi.toml)
+
+# ── Setup ────────────────────────────────────────────────────────────────────
+
+setup:
+	git config core.hooksPath .githooks
+	@echo "  git hooks configured to use .githooks/"
 
 # ── Core build targets ───────────────────────────────────────────────────────
 

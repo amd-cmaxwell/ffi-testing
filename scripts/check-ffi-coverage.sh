@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-base_ref="${1:-origin/main}"
-head_ref="${2:-HEAD}"
-
-changed_files=$(git diff --name-only "$base_ref"..."$head_ref")
+if [ "${1:-}" = "--cached" ]; then
+  changed_files=$(git diff --cached --name-only)
+else
+  base_ref="${1:-origin/main}"
+  head_ref="${2:-HEAD}"
+  changed_files=$(git diff --name-only "$base_ref"..."$head_ref")
+fi
 
 missing=()
 

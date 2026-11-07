@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+
+# Check that staged lib crate changes have corresponding FFI updates
+./scripts/check-ffi-coverage.sh --cached
+
+
+# Sync FFI crate versions to match their lib crates
+result=$(./scripts/sync-ffi-versions.sh)
+if [ -n "$result" ] && [ "$result" != "" ]; then
+  echo "Pre-commit: synced FFI versions — staging updated files"
+  git add crates/ffi/*/Cargo.toml Cargo.toml
+fi
+
+# Sync workspace dependency versions to match crate versions
+result=$(./scripts/sync-workspace-versions.sh)
+if [ "$result" = "updated" ]; then
+  echo "Pre-commit: synced workspace dependency versions — staging Cargo.toml"
+  git add Cargo.toml
+fi
+
+# Validate FFI crate versions >= lib crate versions
+./scripts/check-ffi-versions.sh
+
+# Validate workspace dependency versions match crate versions
+./scripts/check-workspace-versions.sh

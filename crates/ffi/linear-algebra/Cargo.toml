@@ -1,7 +1,10 @@
 [package]
 name = "uniffi-testing-linear-algebra-ffi"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "UniFFI bindings for uniffi-testing-linear-algebra"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
@@ -11,7 +14,7 @@ name = "uniffi_testing_linear_algebra_ffi"
 wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-fns", "dep:uniffi-runtime-wasm", "uniffi-testing-types-ffi/wasm"]
 
 [dependencies]
-uniffi = { version = "0.31" }
-uniffi-runtime-wasm = { version = "0.31.0-6", optional = true }
-uniffi-testing-linear-algebra = { path = "../../linear-algebra" }
-uniffi-testing-types-ffi = { path = "../types" }
+uniffi.workspace = true
+uniffi-runtime-wasm = { workspace = true, optional = true }
+uniffi-testing-linear-algebra.workspace = true
+uniffi-testing-types-ffi.workspace = true
