@@ -52,6 +52,7 @@ jobs:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
+      upload-artifacts: true
 
   go-bindings:
     name: Build Go Bindings
@@ -61,6 +62,7 @@ jobs:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
+      upload-artifacts: true
 
   js-bindings:
     name: Build JS Bindings
@@ -70,3 +72,67 @@ jobs:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
+      upload-artifacts: true
+
+  test-python-bindings:
+    name: Test Python bindings
+    needs: python-bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-ubuntu-latest
+          path: dist/pypi/
+
+      - name: Install wheels and run smoke test
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install dist/pypi/*.whl
+          .venv/bin/python examples/demo.py
+
+  test-go-bindings:
+    name: Test Go bindings
+    needs: go-bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: go-bindings-linux-amd64
+          path: bindings/go/
+
+      - name: Run smoke test
+        run: |
+          cd bindings/go
+          go run ../../examples/demo.go
+
+  test-js-bindings:
+    name: Test JS bindings
+    needs: js-bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm-tarballs
+          path: dist/npm/
+
+      - name: Install tarballs
+        run: |
+          for tgz in dist/npm/*.tgz; do
+            echo "Installing $(basename "$tgz")"
+            npm install "$tgz"
+          done
+          echo "::notice::All npm tarballs installed successfully"
