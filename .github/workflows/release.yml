@@ -170,6 +170,8 @@ jobs:
     needs: [detect-changes, build-go-bindings, build-python-bindings, build-js-bindings]
     if: needs.detect-changes.outputs.has-ffi-changes == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      bindings-commit: ${{ steps.commit-bindings.outputs.commit_sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -209,6 +211,7 @@ jobs:
           path: bindings/js
 
       - name: Commit FFI bindings
+        id: commit-bindings
         shell: bash
         env:
           CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
@@ -225,38 +228,14 @@ jobs:
           done
           if git diff --cached --quiet; then
             echo "::warning::No binding changes to commit"
+            echo "commit_sha=" >> "$GITHUB_OUTPUT"
           else
             summary=$(echo "$CRATE_VERSIONS" | jq -r 'to_entries | map("\(.key) v\(.value)") | join(", ")')
             echo "::notice::Committing bindings for: ${summary}"
             git commit -m "chore: Commit FFI bindings for ${summary}"
             git push origin HEAD:main
+            echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Tag Go modules
-        run: |
-          set -euo pipefail
-          if [ -z "$FFI_MODULES" ]; then
-            echo "::warning::FFI_MODULES is empty — no Go module tags to create"
-            exit 0
-          fi
-          for mod in $FFI_MODULES; do
-            crate_dir=$(echo "$mod" | tr '_' '-')
-            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
-            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
-            tag="bindings/go/${pkg}/v${version}"
-            if [ -z "$version" ]; then
-              echo "::error::Could not parse version from crates/ffi/${crate_dir}/Cargo.toml"
-              exit 1
-            fi
-            if git rev-parse "${tag}" >/dev/null 2>&1; then
-              echo "::error::Tag ${tag} already exists"
-              exit 1
-            fi
-            echo "::notice::Tagging Go module: ${tag}"
-            git tag "${tag}"
-          done
-          git push origin --tags
-        shell: bash
 
   release-rust-crates:
     name: Release Rust crates
@@ -325,3 +304,124 @@ jobs:
               --title "${crate_dir} v${cur_ver}" \
               --generate-notes
           done
+
+  tag-go-modules:
+    name: Tag Go modules
+    needs: [detect-changes, publish-bindings, release-rust-crates]
+    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive naming variables
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "REPO_NAME_US=$(echo "$REPO_NAME" | tr '-' '_')" >> "$GITHUB_ENV"
+          echo "PKG_SUFFIX_US=$(echo "$PKG_SUFFIX" | tr '-' '_')" >> "$GITHUB_ENV"
+
+      - name: Tag Go modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          ffi_modules="${{ needs.detect-changes.outputs.ffi-libs }}"
+          if [ -z "$ffi_modules" ]; then
+            echo "::warning::No FFI modules to tag"
+            exit 0
+          fi
+          for mod in $ffi_modules; do
+            crate_dir=$(echo "$mod" | tr '_' '-')
+            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
+            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            if [ -z "$version" ]; then
+              echo "::error::Could not parse version from crates/ffi/${crate_dir}/Cargo.toml"
+              exit 1
+            fi
+            tag="bindings/go/${pkg}/v${version}"
+            if git rev-parse "${tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${tag} already exists"
+              exit 1
+            fi
+            echo "::notice::Tagging Go module: ${tag}"
+            git tag "${tag}"
+            git push origin "${tag}"
+          done
+
+  rollback:
+    name: Rollback on failure
+    needs: [detect-changes, publish-bindings, release-rust-crates, tag-go-modules]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete GitHub releases and crate tags
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+        run: |
+          set -uo pipefail
+          if [ -z "$CRATE_VERSIONS" ] || [ "$CRATE_VERSIONS" = "{}" ]; then
+            echo "::notice::No crate versions to roll back"
+            exit 0
+          fi
+          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
+            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
+            tag="${crate_path}/v${cur_ver}"
+            if gh release view "${tag}" >/dev/null 2>&1; then
+              echo "::notice::Deleting release ${tag}"
+              gh release delete "${tag}" --yes --cleanup-tag || true
+            elif git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+              echo "::notice::Deleting remote tag ${tag}"
+              git push origin --delete "${tag}" || true
+            fi
+          done
+
+      - name: Delete Go module tags
+        shell: bash
+        env:
+          FFI_LIBS: ${{ needs.detect-changes.outputs.ffi-libs }}
+        run: |
+          set -uo pipefail
+          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
+          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
+          if [ -z "$FFI_LIBS" ]; then
+            echo "::notice::No Go module tags to roll back"
+            exit 0
+          fi
+          for mod in $FFI_LIBS; do
+            crate_dir=$(echo "$mod" | tr '_' '-')
+            pkg="${repo_us}_${mod}${suffix_us}"
+            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            tag="bindings/go/${pkg}/v${version}"
+            if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+              echo "::notice::Deleting Go module tag ${tag}"
+              git push origin --delete "${tag}" || true
+            fi
+          done
+
+      - name: Revert bindings commit
+        shell: bash
+        env:
+          BINDINGS_COMMIT: ${{ needs.publish-bindings.outputs.bindings-commit }}
+        run: |
+          set -uo pipefail
+          if [ -z "$BINDINGS_COMMIT" ]; then
+            echo "::notice::No bindings commit to revert"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          head_sha=$(git rev-parse HEAD)
+          if [ "$head_sha" != "$BINDINGS_COMMIT" ]; then
+            echo "::error::HEAD on main (${head_sha}) is not the bindings commit (${BINDINGS_COMMIT}) — skipping revert to avoid data loss"
+            exit 1
+          fi
+          echo "::notice::Reverting bindings commit ${BINDINGS_COMMIT}"
+          git revert --no-edit "${BINDINGS_COMMIT}"
+          git push origin main
