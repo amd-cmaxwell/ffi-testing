@@ -10,8 +10,8 @@
 #   make generate-js        # Build WASM + TS bindings and pack npm tarballs
 #   make generate-all       # All of the above
 #
-# For template users: most variables are resolved dynamically from the directory
-# name, git remote, and GitHub CLI. Override REPO_NAME, PKG_SUFFIX, GITHUB_REPO,
+# Most variables are resolved dynamically from the git remote and directory
+# name. Override REPO_SLUG, REPO_OWNER, REPO_NAME, PKG_SUFFIX, GIT_REPO,
 # or NPM_SCOPE as needed.
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -21,25 +21,41 @@
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
        test-python test-go \
-       stamp-uniffi-config \
+       stamp-uniffi-config _check-repo-owner \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
        clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
 
 # ── Project identity ─────────────────────────────────────────────────────────
-# REPO_NAME    : kebab-case project name, used as the base for all package names;
-#                resolved from the directory name by default (override to decouple)
-# REPO_NAME_US : underscore variant, used where kebab-case is invalid (Rust crate
-#                names, Go package dirs, WASM filenames)
+# Resolution order: git remote -> REPO_SLUG -> REPO_OWNER + REPO_NAME.
+# All three are overridable. REPO_NAME falls back to the directory name.
+# REPO_OWNER is required for build targets (not clean). After resolution,
+# REPO_SLUG is re-normalized to REPO_OWNER/REPO_NAME.
+#
+# REPO_SLUG    : owner/name pair; derived from the git remote URL
+# REPO_OWNER   : GitHub username or org; derived from REPO_SLUG
+# REPO_NAME    : kebab-case project name; derived from REPO_SLUG, then dir name
+# PKG_PREFIX   : kebab-case prefix for generated packages (defaults to REPO_NAME)
 # PKG_SUFFIX   : appended to every generated package name (e.g. "-ffi")
-# PKG_SUFFIX_US: underscore variant of PKG_SUFFIX
-# PKG_PREFIX   : full kebab-case prefix for generated packages (defaults to
-#                REPO_NAME; override to decouple package naming from the repo)
-REPO_NAME      ?= $(notdir $(CURDIR))
+# *_US variants: underscore-normalized forms for contexts where kebab-case is
+#                invalid (Rust crate names, Go package dirs, WASM filenames)
+_git_remote_url  = $(shell git remote get-url $(1) 2>/dev/null)
+_strip_git_url   = $(patsubst %.git,%,$(patsubst git@%,%,$(patsubst https://%,%,$(patsubst http://%,%,$(1)))))
+_normalize_ssh   = $(subst :,/,$(_strip_git_url))
+_GIT_REMOTE_RAW := $(or $(call _git_remote_url,upstream),$(call _git_remote_url,origin))
+_GIT_REMOTE     := $(if $(_GIT_REMOTE_RAW),$(call _normalize_ssh,$(_GIT_REMOTE_RAW)),)
+_REMOTE_PARTS   := $(subst /, ,$(_GIT_REMOTE))
+
+REPO_SLUG      ?= $(if $(word 2,$(_REMOTE_PARTS)),$(word 2,$(_REMOTE_PARTS))/$(word 3,$(_REMOTE_PARTS)),)
+REPO_OWNER     ?= $(firstword $(subst /, ,$(REPO_SLUG)))
+REPO_NAME      ?= $(or $(word 2,$(subst /, ,$(REPO_SLUG))),$(notdir $(CURDIR)))
 REPO_NAME_US   := $(subst -,_,$(REPO_NAME))
+REPO_SLUG      := $(REPO_OWNER)/$(REPO_NAME)
 PKG_SUFFIX     ?=
 PKG_SUFFIX_US  := $(subst -,_,$(PKG_SUFFIX))
+PKG_PREFIX     := $(REPO_NAME)
 
-PKG_PREFIX := $(REPO_NAME)
+_check-repo-owner:
+	@test -n "$(REPO_OWNER)" || { echo "error: REPO_OWNER could not be resolved — configure a git remote, or set REPO_OWNER explicitly"; exit 1; }
 
 # ── Crate discovery ──────────────────────────────────────────────────────────
 # Automatically finds all FFI crates under crates/ffi/ (excluding the "tools"
@@ -59,20 +75,15 @@ JS_BINDINGS_DIR   ?= $(BINDINGS_DIR)/js
 PY_WHEELS_DIR     ?= $(CURDIR)/dist/pypi
 NPM_TARBALLS_DIR  ?= $(CURDIR)/dist/npm
 
-# ── Go / CGO configuration ──────────────────────────────────────────────────
-# GITHUB_REPO    : used as the Go module path base; resolved from the
-#                  "upstream" remote, falling back to "origin", then a
-#                  placeholder. Strips protocol and .git suffix to produce a
-#                  bare host/org/repo path (e.g. github.com/org/repo).
-# CGO_OS/CGO_ARCH: target platform for cross-compiled static libs
-_git_remote_url  = $(shell git remote get-url $(1) 2>/dev/null)
-_strip_git_url   = $(patsubst %.git,%,$(patsubst git@%,%,$(patsubst https://%,%,$(patsubst http://%,%,$(1)))))
-_normalize_ssh   = $(subst :,/,$(_strip_git_url))
-_GIT_REMOTE_RAW := $(or $(call _git_remote_url,upstream),$(call _git_remote_url,origin))
-_GIT_USER       := $(or $(shell gh api user --jq .login 2>/dev/null),OWNER)
-_GIT_REMOTE     := $(if $(_GIT_REMOTE_RAW),$(call _normalize_ssh,$(_GIT_REMOTE_RAW)),github.com/$(_GIT_USER)/$(REPO_NAME))
-GITHUB_REPO     ?= $(_GIT_REMOTE)
-GO_MODULE_BASE ?= $(GITHUB_REPO)/bindings/go
+# ── Git remote / Go module path ──────────────────────────────────────────────
+# GIT_REPO       : bare host/org/repo path (e.g. github.com/org/repo); resolved
+#                  from the git remote, falling back to github.com/REPO_SLUG
+# GO_MODULE_BASE : Go module import path root (GIT_REPO/bindings/go)
+GIT_REPO        ?= $(or $(_GIT_REMOTE),github.com/$(REPO_SLUG))
+GO_MODULE_BASE  ?= $(GIT_REPO)/bindings/go
+
+# ── CGO cross-compilation ───────────────────────────────────────────────────
+# CGO_OS / CGO_ARCH : target platform for cross-compiled static libs
 CGO_OS         ?= $(shell go env GOOS 2>/dev/null || echo linux)
 CGO_ARCH       ?= $(shell go env GOARCH 2>/dev/null || echo amd64)
 
@@ -87,11 +98,9 @@ CGO_LDFLAGS_darwin := -lm -lpthread -framework Security
 CGO_LDFLAGS_EXTRA  := $(CGO_LDFLAGS_$(CGO_OS))
 
 # ── npm / JS configuration ──────────────────────────────────────────────────
-# NPM_SCOPE      : npm org scope for published packages; defaults to
-#                  @<github-username> via _GIT_USER (override for orgs)
-# NPM_PKG_PREFIX : kebab-case prefix within the scope (defaults to PKG_PREFIX);
-#                  also used as the pnpm private workspace package name
-NPM_SCOPE       ?= @$(_GIT_USER)
+# NPM_SCOPE      : npm org scope (defaults to @REPO_OWNER; override for orgs)
+# NPM_PKG_PREFIX : kebab-case prefix within the scope (defaults to PKG_PREFIX)
+NPM_SCOPE       ?= @$(REPO_OWNER)
 NPM_PKG_PREFIX  ?= $(PKG_PREFIX)
 
 # ── Tooling paths ────────────────────────────────────────────────────────────
@@ -177,7 +186,7 @@ build-tools-wasm:
 # Generates a maturin-based Python project per FFI crate, then builds wheels
 # into $(PY_WHEELS_DIR).  Package name pattern: $(PKG_PREFIX)-<crate>$(PKG_SUFFIX)
 
-generate-python: python-dependencies build-tools-py
+generate-python: _check-repo-owner python-dependencies build-tools-py
 	@mkdir -p $(PY_WHEELS_DIR)
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
@@ -217,7 +226,7 @@ stamp-uniffi-config:
 		sed -i 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f; \
 	done
 
-generate-go: build build-tools-go stamp-uniffi-config
+generate-go: _check-repo-owner build build-tools-go stamp-uniffi-config
 	@mkdir -p $(GO_BINDINGS_DIR)
 	@for ffi_lib in $(FFI_LIBS); do \
 		echo "  generating go bindings for $$ffi_lib ($(CGO_OS)/$(CGO_ARCH))"; \
@@ -253,7 +262,7 @@ install-go: generate-go
 # react-native to produce TypeScript sources + .wasm blobs.
 # npm package pattern: $(NPM_SCOPE)/$(NPM_PKG_PREFIX)-<crate>$(PKG_SUFFIX)
 
-generate-wasm-ts: build-tools-wasm
+generate-wasm-ts: _check-repo-owner build-tools-wasm
 	@mkdir -p $(JS_BINDINGS_DIR)
 	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
 		$(CURDIR)/templates/js/pnpm-workspace.yaml > $(JS_BINDINGS_DIR)/pnpm-workspace.yaml

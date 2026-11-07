@@ -38,19 +38,22 @@ jobs:
     needs: rust-test
     uses: ./.github/workflows/build-python-bindings.yml
     with:
-      repo-name: uniffi-testing
-      pkg-suffix: "-ffi"
+      repo-owner: ${{ vars.REPO_OWNER }}
+      repo-name: ${{ vars.REPO_NAME }}
+      pkg-suffix: ${{ vars.PKG_SUFFIX }}
 
   go-bindings:
     needs: rust-test
     uses: ./.github/workflows/build-go-bindings.yml
     with:
-      repo-name: uniffi-testing
-      pkg-suffix: "-ffi"
+      repo-owner: ${{ vars.REPO_OWNER }}
+      repo-name: ${{ vars.REPO_NAME }}
+      pkg-suffix: ${{ vars.PKG_SUFFIX }}
 
   js-bindings:
     needs: rust-test
     uses: ./.github/workflows/build-js-bindings.yml
     with:
-      repo-name: uniffi-testing
-      pkg-suffix: "-ffi"
+      repo-owner: ${{ vars.REPO_OWNER }}
+      repo-name: ${{ vars.REPO_NAME }}
+      pkg-suffix: ${{ vars.PKG_SUFFIX }}

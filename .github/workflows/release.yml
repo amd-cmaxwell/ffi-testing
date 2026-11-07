@@ -9,8 +9,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  REPO_NAME: uniffi-testing
-  PKG_SUFFIX: "-ffi"
+  REPO_OWNER: ${{ vars.REPO_OWNER }}
+  REPO_NAME: ${{ vars.REPO_NAME }}
+  PKG_SUFFIX: ${{ vars.PKG_SUFFIX }}
 
 jobs:
   detect-changes:
@@ -53,8 +54,9 @@ jobs:
     if: needs.detect-changes.outputs.has-changes == 'true'
     uses: ./.github/workflows/build-python-bindings.yml
     with:
-      repo-name: uniffi-testing
-      pkg-suffix: "-ffi"
+      repo-owner: ${{ vars.REPO_OWNER }}
+      repo-name: ${{ vars.REPO_NAME }}
+      pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
@@ -63,8 +65,9 @@ jobs:
     if: needs.detect-changes.outputs.has-changes == 'true'
     uses: ./.github/workflows/build-go-bindings.yml
     with:
-      repo-name: uniffi-testing
-      pkg-suffix: "-ffi"
+      repo-owner: ${{ vars.REPO_OWNER }}
+      repo-name: ${{ vars.REPO_NAME }}
+      pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
@@ -73,8 +76,9 @@ jobs:
     if: needs.detect-changes.outputs.has-changes == 'true'
     uses: ./.github/workflows/build-js-bindings.yml
     with:
-      repo-name: uniffi-testing
-      pkg-suffix: "-ffi"
+      repo-owner: ${{ vars.REPO_OWNER }}
+      repo-name: ${{ vars.REPO_NAME }}
+      pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       make-target: generate-js
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
@@ -113,7 +117,7 @@ jobs:
           pattern: python-bindings-*
           merge-multiple: true
 
-      - name: Download WASM binding artifacts
+      - name: Download JS binding artifacts
         uses: actions/download-artifact@v4
         with:
           name: js-bindings

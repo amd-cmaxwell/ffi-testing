@@ -3,6 +3,9 @@ name: Build JS Bindings
 on:
   workflow_call:
     inputs:
+      repo-owner:
+        required: true
+        type: string
       repo-name:
         required: true
         type: string
@@ -51,7 +54,12 @@ jobs:
         shell: bash
 
       - name: Build JS/TS/WASM bindings
-        run: make ${{ inputs.make-target }} REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
+        run: make ${{ inputs.make-target }}
+        env:
+          REPO_OWNER: ${{ inputs.repo-owner }}
+          REPO_NAME: ${{ inputs.repo-name }}
+          PKG_SUFFIX: ${{ inputs.pkg-suffix }}
+          FFI_LIBS: ${{ inputs.ffi-libs }}
 
       - uses: actions/upload-artifact@v4
         if: inputs.upload-artifacts

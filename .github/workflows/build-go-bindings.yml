@@ -3,6 +3,9 @@ name: Build Go Bindings
 on:
   workflow_call:
     inputs:
+      repo-owner:
+        required: true
+        type: string
       repo-name:
         required: true
         type: string
@@ -56,7 +59,14 @@ jobs:
         shell: bash
 
       - name: Generate Go bindings
-        run: make generate-go REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} CGO_OS=${{ matrix.cgo_os }} CGO_ARCH=${{ matrix.cgo_arch }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
+        run: make generate-go
+        env:
+          REPO_OWNER: ${{ inputs.repo-owner }}
+          REPO_NAME: ${{ inputs.repo-name }}
+          PKG_SUFFIX: ${{ inputs.pkg-suffix }}
+          CGO_OS: ${{ matrix.cgo_os }}
+          CGO_ARCH: ${{ matrix.cgo_arch }}
+          FFI_LIBS: ${{ inputs.ffi-libs }}
 
       - uses: actions/upload-artifact@v4
         if: inputs.upload-artifacts

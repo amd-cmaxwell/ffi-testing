@@ -3,6 +3,9 @@ name: Build Python Bindings
 on:
   workflow_call:
     inputs:
+      repo-owner:
+        required: true
+        type: string
       repo-name:
         required: true
         type: string
@@ -58,8 +61,13 @@ jobs:
         shell: bash
 
       - name: Generate Python bindings
-        run: make generate-python REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} ${{ inputs.ffi-libs && format('FFI_LIBS="{0}"', inputs.ffi-libs) }}
+        run: make generate-python
         shell: bash
+        env:
+          REPO_OWNER: ${{ inputs.repo-owner }}
+          REPO_NAME: ${{ inputs.repo-name }}
+          PKG_SUFFIX: ${{ inputs.pkg-suffix }}
+          FFI_LIBS: ${{ inputs.ffi-libs }}
 
       # Generated Python source — committed to the repo by the publish-bindings job
       - uses: actions/upload-artifact@v4
