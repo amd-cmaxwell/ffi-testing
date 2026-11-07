@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           echo "::group::Python bindings"
-          find bindings/python/ -type f -name '*.py' | head -50 || echo "::warning::No Python bindings found"
+          (find bindings/python/ -type f -name '*.py' || true) | head -50 || echo "::warning::No Python bindings found"
           echo "::endgroup::"
           echo "::group::Python wheels"
           ls -lh dist/pypi/*.whl 2>/dev/null || echo "::warning::No wheels found in dist/pypi/"

@@ -77,7 +77,7 @@ jobs:
         shell: bash
         run: |
           echo "::group::JS bindings"
-          find bindings/js/ -type f \( -name '*.ts' -o -name '*.js' -o -name 'package.json' \) | head -50 || echo "::warning::No JS bindings found"
+          (find bindings/js/ -type f \( -name '*.ts' -o -name '*.js' -o -name 'package.json' \) || true) | head -50 || echo "::warning::No JS bindings found"
           echo "::endgroup::"
           echo "::group::npm tarballs"
           ls -lh dist/npm/*.tgz 2>/dev/null || echo "::warning::No npm tarballs found in dist/npm/"

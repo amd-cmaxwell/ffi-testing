@@ -84,7 +84,7 @@ jobs:
         shell: bash
         run: |
           echo "::group::Go bindings"
-          find bindings/go/ -type f \( -name '*.go' -o -name '*.h' -o -name 'go.mod' \) | head -50 || echo "::warning::No Go bindings found"
+          (find bindings/go/ -type f \( -name '*.go' -o -name '*.h' -o -name 'go.mod' \) || true) | head -50 || echo "::warning::No Go bindings found"
           echo "::endgroup::"
 
       - uses: actions/upload-artifact@v4
