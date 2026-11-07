@@ -23,7 +23,7 @@ on:
       ffi-libs:
         required: false
         type: string
-        default: ""
+        default: "auto"
 
 env:
   CARGO_TERM_COLOR: always

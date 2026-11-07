@@ -58,12 +58,15 @@ _check-repo-owner:
 	@test -n "$(REPO_OWNER)" || { echo "error: REPO_OWNER could not be resolved — configure a git remote, or set REPO_OWNER explicitly"; exit 1; }
 
 # ── Crate discovery ──────────────────────────────────────────────────────────
-# Automatically finds all FFI crates under crates/ffi/ (excluding the "tools"
-# helper crate). FFI_LIBS is the underscore-normalized list used in loop bodies.
+# Discovers FFI crates under crates/ffi/ (excluding "tools"). FFI_LIBS is the
+# underscore-normalized list used in loop bodies; defaults to "auto" which
+# resolves to all discovered crates. Pass FFI_LIBS="foo bar" to build a subset.
 FFI_CRATE_DIRS  := $(wildcard crates/ffi/*/Cargo.toml)
 FFI_CRATE_PATHS := $(patsubst %/Cargo.toml,%,$(FFI_CRATE_DIRS))
 FFI_CRATE_NAMES := $(filter-out tools,$(notdir $(FFI_CRATE_PATHS)))
-FFI_LIBS        ?= $(sort $(subst -,_,$(FFI_CRATE_NAMES)))
+AUTO_FFI_LIBS   := $(sort $(subst -,_,$(FFI_CRATE_NAMES)))
+FFI_LIBS         ?= auto
+override FFI_LIBS := $(if $(filter auto,$(FFI_LIBS)),$(AUTO_FFI_LIBS),$(FFI_LIBS))
 
 # ── Output directories ───────────────────────────────────────────────────────
 # Intermediate binding sources go under bindings/; distributable artifacts
