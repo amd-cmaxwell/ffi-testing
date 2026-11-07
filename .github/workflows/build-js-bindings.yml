@@ -45,7 +45,15 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Cache uniffi-bindgen-react-native
+        id: cache-bindgen
+        uses: actions/cache@v4
+        with:
+          path: .tools/bin/uniffi-bindgen-react-native
+          key: uniffi-bindgen-rn-${{ runner.os }}-${{ hashFiles('crates/ffi/tools/Cargo.toml') }}
+
       - name: Install uniffi-bindgen-react-native
+        if: steps.cache-bindgen.outputs.cache-hit != 'true'
         run: make build-tools-wasm
         shell: bash
 

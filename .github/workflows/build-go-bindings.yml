@@ -50,7 +50,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache uniffi-bindgen-go
+        id: cache-bindgen
+        uses: actions/cache@v4
+        with:
+          path: .tools/bin/uniffi-bindgen-go
+          key: uniffi-bindgen-go-${{ runner.os }}-${{ hashFiles('crates/ffi/tools/Cargo.toml') }}
+
       - name: Install uniffi-bindgen-go
+        if: steps.cache-bindgen.outputs.cache-hit != 'true'
         run: make build-tools-go
         shell: bash
 

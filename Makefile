@@ -226,7 +226,7 @@ install-python: generate-python
 # from the correct module path.
 stamp-uniffi-config:
 	@for f in $(UNIFFI_TOML_FILES); do \
-		sed -i 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f; \
+		sed 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f > $$f.tmp && mv $$f.tmp $$f; \
 	done
 
 generate-go: _check-repo-owner build build-tools-go stamp-uniffi-config
