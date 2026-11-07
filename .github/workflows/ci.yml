@@ -44,7 +44,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
-  python-bindings:
+  build-python-bindings:
     name: Build Python Bindings
     needs: [rust-test, check-ffi-versions, check-workspace-versions]
     uses: ./.github/workflows/build-python-bindings.yml
@@ -54,7 +54,7 @@ jobs:
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
 
-  go-bindings:
+  build-go-bindings:
     name: Build Go Bindings
     needs: [rust-test, check-ffi-versions, check-workspace-versions]
     uses: ./.github/workflows/build-go-bindings.yml
@@ -64,7 +64,7 @@ jobs:
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
 
-  js-bindings:
+  build-js-bindings:
     name: Build JS Bindings
     needs: [rust-test, check-ffi-versions, check-workspace-versions]
     uses: ./.github/workflows/build-js-bindings.yml
@@ -76,7 +76,7 @@ jobs:
 
   test-python-bindings:
     name: Test Python bindings
-    needs: python-bindings
+    needs: build-python-bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,11 +90,11 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install dist/pypi/*.whl
-          .venv/bin/python examples/demo.py
+          .venv/bin/python examples/py-demo
 
   test-go-bindings:
     name: Test Go bindings
-    needs: go-bindings
+    needs: build-go-bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -110,12 +110,17 @@ jobs:
 
       - name: Run smoke test
         run: |
-          cd bindings/go
-          go run ../../examples/demo.go
+          cd examples/go-demo
+          for pkg_dir in ../../bindings/go/*/; do
+            [ -f "$pkg_dir/go.mod" ] || continue
+            mod_path=$(head -1 "$pkg_dir/go.mod" | awk '{print $2}')
+            go mod edit -require="$mod_path@v0.0.0" -replace="$mod_path=$(cd "$pkg_dir" && pwd)"
+          done
+          go run main.go
 
   test-js-bindings:
     name: Test JS bindings
-    needs: js-bindings
+    needs: build-js-bindings
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

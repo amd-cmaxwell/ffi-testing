@@ -19,7 +19,7 @@ on:
       make-target:
         required: false
         type: string
-        default: compile-wasm-ts
+        default: generate-js
       ffi-libs:
         required: false
         type: string
@@ -29,7 +29,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  js-bindings:
+  build-js-bindings:
     name: JS/TS/WASM bindings
     runs-on: ubuntu-latest
     steps:

@@ -20,7 +20,7 @@
        build-tools-py build-tools-go build-tools-wasm \
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
-       test-python test-go \
+       test-python test-go test-js test-all \
        stamp-uniffi-config _check-repo-owner \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
        clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
@@ -208,7 +208,14 @@ generate-python: _check-repo-owner python-dependencies build-tools-py
 			sed \
 				-e "s|PKG_NAME|$$pkg_name|" \
 				-e "s|MANIFEST_PATH|$$manifest_path|" \
-				$(CURDIR)/templates/pyproject.toml > $$proj_dir/pyproject.toml; \
+				$(CURDIR)/templates/python/pyproject.toml > $$proj_dir/pyproject.toml; \
+		fi; \
+		mod_name=$$(echo $(REPO_NAME_US)_$${ffi_lib}$(PKG_SUFFIX_US)); \
+		if grep -q "$$mod_name" $(CURDIR)/uniffi.toml 2>/dev/null && \
+		   grep -A20 '\[bindings.python.external_packages\]' $(CURDIR)/uniffi.toml | grep -q "$$mod_name"; then \
+			echo "  patching __init__.py for external package $$mod_name"; \
+			mkdir -p $$proj_dir/$$mod_name; \
+			sed "s|MOD_NAME|$$mod_name|g" $(CURDIR)/templates/python/init_external.py > $$proj_dir/$$mod_name/__init__.py; \
 		fi; \
 		echo "  building python bindings for $$ffi_lib"; \
 		( cd $$proj_dir && PATH=$(TOOLS_DIR)/bin:$$PATH maturin build --release --out $(PY_WHEELS_DIR) ); \
@@ -258,7 +265,7 @@ generate-go: _check-repo-owner build build-tools-go stamp-uniffi-config
 			-e "s|CGO_ARCH|$(CGO_ARCH)|g" \
 			-e "s|PKG_NAME|$$pkg|g" \
 			-e "s|CGO_LDFLAGS_EXTRA|$(CGO_LDFLAGS_EXTRA)|g" \
-			templates/cgo_platform.go \
+			templates/go/cgo_platform.go \
 		> $(GO_BINDINGS_DIR)/$$pkg/cgo_$(CGO_OS)_$(CGO_ARCH).go; \
 	done
 	@echo "  go bindings written to $(GO_BINDINGS_DIR)/"
@@ -336,10 +343,33 @@ generate-all: generate-python generate-go generate-js
 # ── Smoke tests ──────────────────────────────────────────────────────────────
 
 test-python: install-python
-	python examples/demo.py
+	python examples/py-demo
 
 test-go: install-go
-	cd $(GO_BINDINGS_DIR) && go build ./...
+	@for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
+		[ -f "$$pkg_dir/go.mod" ] || continue; \
+		echo "  building $$(basename $$pkg_dir)"; \
+		( cd "$$pkg_dir" && go build ./... ); \
+	done
+	@echo "  running smoke test"
+	@cd $(CURDIR)/examples/go-demo && \
+		cp go.mod go.mod.bak && \
+		for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
+			[ -f "$$pkg_dir/go.mod" ] || continue; \
+			mod_path=$$(head -1 "$$pkg_dir/go.mod" | awk '{print $$2}'); \
+			go mod edit -require="$$mod_path@v0.0.0" -replace="$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
+		done && \
+		go run main.go; \
+		status=$$?; \
+		mv go.mod.bak go.mod; \
+		rm -f go.sum; \
+		exit $$status
+
+test-js: compile-wasm-ts
+	@echo "JS smoke test not yet implemented"
+
+
+test-all: test-python test-go test-js
 
 # ── Cleanup ──────────────────────────────────────────────────────────────────
 # clean            : cargo clean only (removes target/)

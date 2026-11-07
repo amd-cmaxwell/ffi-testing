@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-"""Demo script exercising all UniFFI-generated Python bindings."""
-
 from uniffi_testing_types_ffi import MathError, Point2
 from uniffi_testing_core_ffi import add
 from uniffi_testing_complex_ffi import (

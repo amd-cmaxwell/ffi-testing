@@ -25,7 +25,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  python-bindings:
+  build-python-bindings:
     name: Python bindings (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
