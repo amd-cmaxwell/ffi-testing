@@ -25,6 +25,7 @@ jobs:
           sha="${{ github.sha }}"
           echo "::notice::Checking CI workflow status for ${sha}"
           result=$(gh run list \
+            --repo="${{ github.repository }}" \
             --workflow=ci.yml \
             --commit="$sha" \
             --status=completed \
