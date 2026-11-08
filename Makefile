@@ -292,6 +292,7 @@ generate-wasm-ts: _check-repo-owner build-tools-wasm
 		pkg_dir=$(JS_BINDINGS_DIR)/$${npm_pkg}; \
 		mkdir -p $$pkg_dir/src; \
 		echo "  building wasm for $$pkg"; \
+		RUSTFLAGS="-C link-arg=--export-table -C link-arg=--growable-table" \
 		cargo build --release --target wasm32-unknown-unknown \
 			-p $(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX) --features wasm; \
 		echo "  generating wasm/ts bindings for $$ffi_lib"; \
@@ -316,6 +317,12 @@ compile-wasm-ts: js-dependencies generate-wasm-ts
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		( cd "$$pkg_dir" && pnpm exec tsc ); \
 	done
+	@for f in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/dist/*.js \
+	          $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/dist/*.d.ts; do \
+		[ -f "$$f" ] || continue; \
+		sed -i -e "s/from '\.\/\([^']*\)'/from '.\/\1.js'/g" \
+			   -e 's/from "\.\/\([^"]*\)"/from ".\/\1.js"/g' "$$f"; \
+	done
 	@echo "  typescript compiled at $(JS_BINDINGS_DIR)/"
 
 # Packs each JS package into an npm tarball for local installation or publishing
@@ -323,18 +330,25 @@ generate-js: compile-wasm-ts
 	@mkdir -p $(NPM_TARBALLS_DIR)
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		echo "  packing $$(basename $$pkg_dir)"; \
-		( cd "$$pkg_dir" && npm pack --pack-destination $(NPM_TARBALLS_DIR) ); \
+		( cd "$$pkg_dir" && npm pack --ignore-scripts --pack-destination $(NPM_TARBALLS_DIR) ); \
 	done
 	@echo "  npm tarballs written to $(NPM_TARBALLS_DIR)/"
 
-# Installs packed tarballs into a target JS project (requires JS_PROJECT_DIR)
+# Installs packed tarballs into a target JS project, or globally if JS_PROJECT_DIR is not set
 install-js: generate-js
-	@test -n "$(JS_PROJECT_DIR)" || { echo "error: JS_PROJECT_DIR is required (e.g. make install-js JS_PROJECT_DIR=../my-app)"; exit 1; }
-	@for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
-		echo "  installing $$(basename $$tgz) into $(JS_PROJECT_DIR)"; \
-		( cd $(JS_PROJECT_DIR) && npm install $$tgz ); \
-	done
-	@echo "  all js packages installed into $(JS_PROJECT_DIR)/"
+	@if [ -n "$(JS_PROJECT_DIR)" ]; then \
+		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
+			echo "  installing $$(basename $$tgz) into $(JS_PROJECT_DIR)"; \
+			( cd $(JS_PROJECT_DIR) && npm install --ignore-scripts $$tgz ); \
+		done; \
+		echo "  all js packages installed into $(JS_PROJECT_DIR)/"; \
+	else \
+		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
+			echo "  installing $$(basename $$tgz) globally"; \
+			npm install -g --ignore-scripts $$tgz; \
+		done; \
+		echo "  all js packages installed globally"; \
+	fi
 
 # ── Aggregate targets ────────────────────────────────────────────────────────
 
@@ -365,8 +379,10 @@ test-go: install-go
 		rm -f go.sum; \
 		exit $$status
 
-test-js: compile-wasm-ts
-	@echo "JS smoke test not yet implemented"
+test-js:
+	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
+	@echo "  running smoke test"
+	node --test examples/js-demo/main.mjs
 
 
 test-all: test-python test-go test-js
