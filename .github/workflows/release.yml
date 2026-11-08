@@ -23,16 +23,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           sha="${{ github.sha }}"
-          echo "::notice::Checking CI status for ${sha}"
-          status=$(gh api "repos/${{ github.repository }}/commits/${sha}/check-runs" \
-            --jq '[.check_runs[] | select(.app.slug == "github-actions")] |
+          echo "::notice::Checking CI workflow status for ${sha}"
+          result=$(gh run list \
+            --workflow=ci.yml \
+            --commit="$sha" \
+            --status=completed \
+            --json conclusion \
+            --jq '[.[] | .conclusion] |
               if length == 0 then "none"
-              elif all(.conclusion == "success" or .conclusion == "skipped") then "pass"
+              elif all(. == "success" or . == "skipped") then "pass"
               else "fail" end')
-          if [ "$status" = "none" ]; then
-            echo "::error::No CI runs found for commit ${sha}. Push to main and wait for CI to pass before releasing."
+          if [ "$result" = "none" ]; then
+            echo "::error::No completed CI runs found for commit ${sha}. Push to main and wait for CI to pass before releasing."
             exit 1
-          elif [ "$status" != "pass" ]; then
+          elif [ "$result" != "pass" ]; then
             echo "::error::CI has not passed on commit ${sha}. Fix CI before releasing."
             exit 1
           fi
