@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Reject manual edits to auto-generated bindings
 if [ "${SKIP_BINDINGS_CHECK:-}" != "1" ]; then
-  bindings_files=$(git diff --cached --name-only -- bindings/)
+  bindings_files=$(git diff --cached --name-only -- bindings/ | grep -v '^bindings/README\.md$' || true)
   if [ -n "$bindings_files" ]; then
     echo "error: files in bindings/ are auto-generated and should not be modified manually:"
     echo "$bindings_files" | sed 's/^/  /'
