@@ -13,17 +13,13 @@ version_from_tag() {
   echo "${1##*/v}"
 }
 
-detect_bump() {
-  local prev="$1" cur="$2"
-  IFS='.' read -r p_major p_minor _p_patch <<< "$prev"
-  IFS='.' read -r c_major c_minor _c_patch <<< "$cur"
-  if [ "$c_major" -ne "$p_major" ]; then
-    echo "major"
-  elif [ "$c_minor" -ne "$p_minor" ]; then
-    echo "minor"
-  else
-    echo "patch"
-  fi
+version_lt() {
+  IFS='.' read -r a_major a_minor a_patch <<< "$1"
+  IFS='.' read -r b_major b_minor b_patch <<< "$2"
+  if [ "$a_major" -lt "$b_major" ]; then return 0; fi
+  if [ "$a_major" -eq "$b_major" ] && [ "$a_minor" -lt "$b_minor" ]; then return 0; fi
+  if [ "$a_major" -eq "$b_major" ] && [ "$a_minor" -eq "$b_minor" ] && [ "$a_patch" -lt "$b_patch" ]; then return 0; fi
+  return 1
 }
 
 apply_bump() {
@@ -34,6 +30,15 @@ apply_bump() {
     minor) echo "${major}.$((minor + 1)).0" ;;
     patch) echo "${major}.${minor}.$((patch + 1))" ;;
   esac
+}
+
+compute_ffi_target() {
+  local ffi_version="$1" lib_version="$2"
+  if version_lt "$ffi_version" "$lib_version"; then
+    echo "$lib_version"
+  else
+    apply_bump "$ffi_version" "patch"
+  fi
 }
 
 changed=()
@@ -65,8 +70,6 @@ for lib_toml in "$CRATES_DIR"/*/Cargo.toml; do
       continue
     fi
 
-    bump=$(detect_bump "$prev_lib_version" "$lib_version")
-
     # Idempotency: if the FFI version already differs from HEAD, this sync
     # (or a manual bump) already ran in this working tree — skip.
     head_ffi_version=$(git -C "$REPO_ROOT" show HEAD:"crates/ffi/${crate_dir}/Cargo.toml" 2>/dev/null \
@@ -76,9 +79,9 @@ for lib_toml in "$CRATES_DIR"/*/Cargo.toml; do
       continue
     fi
 
-    new_ffi_version=$(apply_bump "$ffi_version" "$bump")
+    new_ffi_version=$(compute_ffi_target "$ffi_version" "$lib_version")
 
-    echo >&2 "  synced $crate_dir: $ffi_version -> $new_ffi_version (lib $bump bump: $prev_lib_version -> $lib_version)"
+    echo >&2 "  synced $crate_dir: $ffi_version -> $new_ffi_version (lib changed: $prev_lib_version -> $lib_version)"
   fi
 
   ffi_path="crates/ffi/${crate_dir}"

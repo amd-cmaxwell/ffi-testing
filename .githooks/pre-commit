@@ -12,17 +12,15 @@ if [ "${SKIP_BINDINGS_CHECK:-}" != "1" ]; then
   fi
 fi
 
-
-# Check that staged lib crate changes have corresponding FFI updates
-./scripts/check-ffi-coverage.sh --cached
-
-
 # Sync FFI crate versions to match their lib crates
 result=$(./scripts/sync-ffi-versions.sh)
 if [ -n "$result" ] && [ "$result" != "" ]; then
   echo "Pre-commit: synced FFI versions — staging updated files"
   git add crates/ffi/*/Cargo.toml Cargo.toml
 fi
+
+# Check that staged lib crate changes have corresponding FFI updates
+./scripts/check-ffi-coverage.sh --cached
 
 # Sync workspace dependency versions to match crate versions
 result=$(./scripts/sync-workspace-versions.sh)
