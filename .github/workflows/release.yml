@@ -298,8 +298,8 @@ jobs:
           done
 
           if git diff --cached --quiet; then
-            echo "::warning::No binding changes to commit"
-            echo "commit_sha=" >> "$GITHUB_OUTPUT"
+            echo "::error::No binding changes to commit — expected bindings to be generated"
+            exit 1
           else
             summary=$(echo "$CRATE_VERSIONS" | jq -r 'to_entries | map("\(.key) v\(.value)") | join(", ")')
             echo "::notice::Committing bindings for: ${summary}"
