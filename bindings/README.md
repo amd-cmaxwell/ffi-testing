@@ -14,10 +14,10 @@ out the `bindings` branch, merges `main`, generates bindings for all
 target languages, and commits the result. Version tags are applied to
 both branches:
 
-- `crates/{name}/v0.2.0` on `main` -- marks the source commit
-- `crates/ffi/{name}/v0.2.0` on `main` -- marks the FFI crate
-- `v0.2.0-bindings` on `bindings` -- marks the generated output
-- `bindings/go/{package}/v0.2.0` on `bindings` -- per-module tags
+- `crates/{name}/vX.Y.Z` on `main` -- marks the lib crate source commit
+- `crates/ffi/{name}/vX.Y.Z` on `main` -- marks the FFI crate source commit
+- `ffi/{name}/vX.Y.Z` on `bindings` -- marks the generated bindings commit
+- `bindings/go/{package}/vX.Y.Z` on `bindings` -- per-module tags
   required by `go get` (must point at a commit where `go.mod` exists at
   that path)
 
@@ -63,7 +63,7 @@ flowchart TD
   F -- no --> G[Skip commit]
   F -- yes --> H[CI: SKIP_BINDINGS_CHECK=1<br/>git commit]
   H --> I[CI: tag crates/ on main]
-  I --> J[CI: tag vX.Y.Z-bindings<br/>on bindings commit]
+  I --> J[CI: tag ffi/name/vX.Y.Z<br/>on bindings commit]
   J --> M[CI: tag bindings/go/pkg/vX.Y.Z<br/>on bindings commit]
   M --> L[CI: git push origin bindings --tags]
   L --> K[Consumers install from tag]
@@ -77,11 +77,11 @@ Install from the `bindings` branch using version tags:
 # Go -- uses the per-module tag (bindings/go/{package}/vX.Y.Z)
 GONOSUMCHECK=* go get github.com/<owner>/<repo>/bindings/go/uniffi_testing_core_ffi@v0.2.0
 
-# Python -- uses the vX.Y.Z-bindings tag
-pip install "git+https://github.com/<owner>/<repo>.git@v0.2.0-bindings#subdirectory=bindings/python/uniffi-testing-core-ffi"
+# Python -- uses the ffi/{name}/vX.Y.Z tag
+pip install "git+https://github.com/<owner>/<repo>.git@ffi/core/v0.2.0#subdirectory=bindings/python/uniffi-testing-core-ffi"
 
 # JavaScript -- pnpm supports git subdirectory installs
-pnpm add "github:<owner>/<repo>#v0.2.0-bindings&path=bindings/js/<npm-scope>/uniffi-testing-core-ffi"
+pnpm add "github:<owner>/<repo>#ffi/core/v0.2.0&path=bindings/js/<npm-scope>/uniffi-testing-core-ffi"
 ```
 
 ### Go tag requirements

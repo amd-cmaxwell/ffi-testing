@@ -226,6 +226,8 @@ jobs:
       bindings-commit: ${{ steps.commit-bindings.outputs.commit_sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Derive FFI modules
         shell: bash
@@ -262,7 +264,7 @@ jobs:
           name: js-bindings
           path: bindings/js
 
-      - name: Commit FFI bindings
+      - name: Commit FFI bindings to bindings branch
         id: commit-bindings
         shell: bash
         env:
@@ -271,23 +273,83 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add bindings/go/ bindings/python/
-          git add bindings/js/package.json bindings/js/pnpm-workspace.yaml
+
+          main_sha=$(git rev-parse HEAD)
+
+          # Checkout or create the bindings branch
+          if git ls-remote --exit-code origin bindings >/dev/null 2>&1; then
+            git fetch origin bindings:bindings
+            git checkout bindings
+          else
+            echo "::notice::Creating bindings branch for the first time"
+            git checkout -b bindings
+          fi
+
+          # Merge main into bindings
+          git merge main --no-edit
+
+          # Stage bindings (force-add past .gitignore)
+          git add -f bindings/go/ bindings/python/
+          git add -f bindings/js/package.json bindings/js/pnpm-workspace.yaml
           for pkg_dir in bindings/js/"${NPM_SCOPE}"/*/; do
             [ -d "$pkg_dir" ] || continue
-            git add "${pkg_dir}package.json" "${pkg_dir}tsconfig.json" 2>/dev/null || true
-            [ -d "${pkg_dir}src" ] && git add "${pkg_dir}src/"
+            git add -f "${pkg_dir}package.json" "${pkg_dir}tsconfig.json" 2>/dev/null || true
+            [ -d "${pkg_dir}src" ] && git add -f "${pkg_dir}src/"
           done
+
           if git diff --cached --quiet; then
             echo "::warning::No binding changes to commit"
             echo "commit_sha=" >> "$GITHUB_OUTPUT"
           else
             summary=$(echo "$CRATE_VERSIONS" | jq -r 'to_entries | map("\(.key) v\(.value)") | join(", ")')
             echo "::notice::Committing bindings for: ${summary}"
-            SKIP_BINDINGS_CHECK=1 git commit -m "chore: Commit FFI bindings for ${summary}"
-            git push origin HEAD:main
-            echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+            SKIP_BINDINGS_CHECK=1 git commit -m "chore: generate bindings for ${summary}"
+            commit_sha=$(git rev-parse HEAD)
+            echo "commit_sha=${commit_sha}" >> "$GITHUB_OUTPUT"
+            git push origin bindings
           fi
+
+      - name: Tag bindings commit
+        if: steps.commit-bindings.outputs.commit_sha != ''
+        shell: bash
+        env:
+          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+        run: |
+          set -euo pipefail
+
+          # Create ffi/{name}/vX.Y.Z tags on the bindings commit for Pip (Python) & Pnpm (JS)
+          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
+            case "$crate_path" in crates/ffi/*) ;; *) continue ;; esac
+            crate_dir=$(basename "$crate_path")
+            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
+            tag="ffi/${crate_dir}/v${cur_ver}"
+            if git rev-parse "${tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${tag} already exists"
+              exit 1
+            fi
+            echo "::notice::Tagging bindings: ${tag}"
+            git tag "${tag}"
+          done
+
+          # Create bindings/go/{pkg}/vX.Y.Z tags for Go modules
+          for mod in ${FFI_MODULES}; do
+            crate_dir=$(echo "$mod" | tr '_' '-')
+            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
+            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            if [ -z "$version" ]; then
+              echo "::error::Could not parse version from crates/ffi/${crate_dir}/Cargo.toml"
+              exit 1
+            fi
+            tag="bindings/go/${pkg}/v${version}"
+            if git rev-parse "${tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${tag} already exists"
+              exit 1
+            fi
+            echo "::notice::Tagging Go module: ${tag}"
+            git tag "${tag}"
+          done
+
+          git push origin --tags
 
   release-rust-crates:
     name: Release Rust crates
@@ -365,51 +427,9 @@ jobs:
             fi
           done
 
-  tag-go-modules:
-    name: Tag Go modules
-    needs: [detect-changes, publish-bindings, release-rust-crates]
-    if: needs.detect-changes.outputs.has-ffi-changes == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Derive naming variables
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "REPO_NAME_US=$(echo "$REPO_NAME" | tr '-' '_')" >> "$GITHUB_ENV"
-          echo "PKG_SUFFIX_US=$(echo "$PKG_SUFFIX" | tr '-' '_')" >> "$GITHUB_ENV"
-
-      - name: Tag Go modules
-        shell: bash
-        run: |
-          set -euo pipefail
-          ffi_modules="${{ needs.detect-changes.outputs.ffi-libs }}"
-          if [ -z "$ffi_modules" ]; then
-            echo "::warning::No FFI modules to tag"
-            exit 0
-          fi
-          for mod in $ffi_modules; do
-            crate_dir=$(echo "$mod" | tr '_' '-')
-            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
-            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
-            if [ -z "$version" ]; then
-              echo "::error::Could not parse version from crates/ffi/${crate_dir}/Cargo.toml"
-              exit 1
-            fi
-            tag="bindings/go/${pkg}/v${version}"
-            if git rev-parse "${tag}" >/dev/null 2>&1; then
-              echo "::error::Tag ${tag} already exists"
-              exit 1
-            fi
-            echo "::notice::Tagging Go module: ${tag}"
-            git tag "${tag}"
-            git push origin "${tag}"
-          done
-
   rollback:
     name: Rollback on failure
-    needs: [detect-changes, publish-bindings, release-rust-crates, tag-go-modules]
+    needs: [detect-changes, publish-bindings, release-rust-crates]
     if: failure()
     runs-on: ubuntu-latest
     steps:
@@ -463,7 +483,28 @@ jobs:
             fi
           done
 
-      - name: Revert bindings commit
+      - name: Delete FFI bindings tags
+        shell: bash
+        env:
+          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+        run: |
+          set -uo pipefail
+          if [ -z "$CRATE_VERSIONS" ] || [ "$CRATE_VERSIONS" = "{}" ]; then
+            echo "::notice::No FFI bindings tags to roll back"
+            exit 0
+          fi
+          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
+            case "$crate_path" in crates/ffi/*) ;; *) continue ;; esac
+            crate_dir=$(basename "$crate_path")
+            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
+            tag="ffi/${crate_dir}/v${cur_ver}"
+            if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
+              echo "::notice::Deleting FFI bindings tag ${tag}"
+              git push origin --delete "${tag}" || true
+            fi
+          done
+
+      - name: Reset bindings branch
         shell: bash
         env:
           BINDINGS_COMMIT: ${{ needs.publish-bindings.outputs.bindings-commit }}
@@ -473,16 +514,11 @@ jobs:
             echo "::notice::No bindings commit to revert"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git checkout main
-          git reset --hard origin/main
-          head_sha=$(git rev-parse HEAD)
+          git fetch origin bindings
+          head_sha=$(git rev-parse origin/bindings)
           if [ "$head_sha" != "$BINDINGS_COMMIT" ]; then
-            echo "::error::HEAD on main (${head_sha}) is not the bindings commit (${BINDINGS_COMMIT}) — skipping revert to avoid data loss"
+            echo "::error::bindings branch HEAD (${head_sha}) is not the expected commit (${BINDINGS_COMMIT}) — skipping reset to avoid data loss"
             exit 1
           fi
-          echo "::notice::Reverting bindings commit ${BINDINGS_COMMIT}"
-          git revert --no-edit "${BINDINGS_COMMIT}"
-          git push origin main
+          echo "::notice::Resetting bindings branch to ${BINDINGS_COMMIT}~1"
+          git push origin --force-with-lease "${BINDINGS_COMMIT}~1:refs/heads/bindings"
