@@ -377,6 +377,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+          BINDINGS_COMMIT: ${{ needs.publish-bindings.outputs.bindings-commit }}
         run: |
           set -euo pipefail
           repo_us=$(echo "$REPO_NAME" | tr '-' '_')
