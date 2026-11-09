@@ -312,41 +312,35 @@ jobs:
       - name: Tag bindings commit
         if: steps.commit-bindings.outputs.commit_sha != ''
         shell: bash
-        env:
-          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
         run: |
           set -euo pipefail
 
-          # Create ffi/{name}/vX.Y.Z tags on the bindings commit for Pip (Python) & Pnpm (JS)
-          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
-            case "$crate_path" in crates/ffi/*) ;; *) continue ;; esac
-            crate_dir=$(basename "$crate_path")
-            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
-            tag="ffi/${crate_dir}/v${cur_ver}"
-            if git rev-parse "${tag}" >/dev/null 2>&1; then
-              echo "::error::Tag ${tag} already exists"
-              exit 1
-            fi
-            echo "::notice::Tagging bindings: ${tag}"
-            git tag "${tag}"
-          done
-
-          # Create bindings/go/{pkg}/vX.Y.Z tags for Go modules
           for mod in ${FFI_MODULES}; do
             crate_dir=$(echo "$mod" | tr '_' '-')
-            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             if [ -z "$version" ]; then
               echo "::error::Could not parse version from crates/ffi/${crate_dir}/Cargo.toml"
               exit 1
             fi
-            tag="bindings/go/${pkg}/v${version}"
-            if git rev-parse "${tag}" >/dev/null 2>&1; then
-              echo "::error::Tag ${tag} already exists"
+
+            # ffi/{name}/vX.Y.Z for pip/pnpm consumers
+            ffi_tag="ffi/${crate_dir}/v${version}"
+            if git rev-parse "${ffi_tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${ffi_tag} already exists"
               exit 1
             fi
-            echo "::notice::Tagging Go module: ${tag}"
-            git tag "${tag}"
+            echo "::notice::Tagging bindings: ${ffi_tag}"
+            git tag "${ffi_tag}"
+
+            # bindings/go/{pkg}/vX.Y.Z for Go modules
+            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
+            go_tag="bindings/go/${pkg}/v${version}"
+            if git rev-parse "${go_tag}" >/dev/null 2>&1; then
+              echo "::error::Tag ${go_tag} already exists"
+              exit 1
+            fi
+            echo "::notice::Tagging Go module: ${go_tag}"
+            git tag "${go_tag}"
           done
 
           git push origin --tags
