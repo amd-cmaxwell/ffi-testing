@@ -32,8 +32,8 @@ cat <<'HEADER'
 HEADER
 
 # Extract crate name and version from the tag (crates/{name}/vX.Y.Z or crates/ffi/{name}/vX.Y.Z)
-crate_dir=$(echo "$tag" | sed 's|.*/v[0-9].*||' | xargs basename)
 version=$(echo "$tag" | grep -o 'v[0-9].*')
+crate_dir=$(echo "$tag" | sed "s|/${version}$||" | xargs basename)
 
 # Build bindings source links using the ffi/ and bindings/go/ tags
 repo_us=$(echo "${REPO_NAME:-}" | tr '-' '_')
