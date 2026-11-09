@@ -37,7 +37,9 @@ flowchart TD
   E --> F{bindings changed?}
   F -- no --> G[Skip commit]
   F -- yes --> H[CI: SKIP_BINDINGS_CHECK=1<br/>git commit]
-  H --> I[CI: git tag vX.Y.Z]
-  I --> J[CI: git push origin bindings --tags]
-  J --> K[Consumers install from tag]
+  H --> I[CI: tag crates/ on main]
+  I --> J[CI: tag vX.Y.Z-bindings<br/>on bindings commit]
+  J --> M[CI: tag bindings/go/pkg/vX.Y.Z<br/>on bindings commit]
+  M --> L[CI: git push origin bindings --tags]
+  L --> K[Consumers install from tag]
 ```
