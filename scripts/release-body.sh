@@ -32,22 +32,6 @@ case "$tag" in
     ;;
 esac
 
-if [ -n "${BINDINGS_COMMIT:-}" ]; then
-  echo "**Bindings commit:** [\`${BINDINGS_COMMIT:0:7}\`](${repo_url}/commit/${BINDINGS_COMMIT}) (on \`bindings\` branch)"
-  echo
-fi
-
-if [ ${#assets[@]} -eq 0 ]; then
-  exit 0
-fi
-
-cat <<'HEADER'
-## 📦 Assets by Platform
-
-| Language | Platform | Architecture | Asset | Source |
-| :--- | :--- | :--- | :--- | :--- |
-HEADER
-
 # Extract crate name and version from the tag (crates/{name}/vX.Y.Z or crates/ffi/{name}/vX.Y.Z)
 version=$(echo "$tag" | grep -o 'v[0-9].*')
 crate_dir=$(echo "$tag" | sed "s|/${version}$||" | xargs basename)
@@ -63,6 +47,28 @@ go_tag="bindings/go/${go_pkg}/${version}"
 py_pkg="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
 npm_scope="${NPM_SCOPE:-@${REPO_OWNER:-}}"
 js_pkg="${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
+
+ffi_crate_name="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
+ffi_crate_link="[${ffi_crate_name}](${repo_url}/tree/${ffi_tag}/crates/ffi/${crate_dir})"
+
+if [ -n "${BINDINGS_COMMIT:-}" ]; then
+  echo "**Bindings commit:** [\`${BINDINGS_COMMIT:0:7}\`](${repo_url}/commit/${BINDINGS_COMMIT}) (on \`bindings\` branch)"
+  echo
+fi
+
+echo "**FFI crate:** ${ffi_crate_link}"
+echo
+
+if [ ${#assets[@]} -eq 0 ]; then
+  exit 0
+fi
+
+cat <<'HEADER'
+## 📦 Assets by Platform
+
+| Language | Platform | Architecture | Asset | Source |
+| :--- | :--- | :--- | :--- | :--- |
+HEADER
 
 rust_link="[source](${repo_url}/tree/${tag}/crates/${crate_dir})"
 py_link="[source](${repo_url}/tree/${ffi_tag}/bindings/python/${py_pkg})"
