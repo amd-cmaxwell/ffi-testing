@@ -1,22 +1,24 @@
 # ffi-testing
 
-A toy project for evaluating Rust FFI approaches with the goal of building Python and Go bindings for the [virtee/sev](https://github.com/virtee/sev) crate.
+A toy project for evaluating Rust FFI approaches with the goal of building Python, Go, and JS/WASM bindings for the [virtee/sev](https://github.com/virtee/sev) crate.
 
 ## Motivation
 
-The `virtee/sev` crate provides Rust APIs for AMD SEV (Secure Encrypted Virtualization). To make these capabilities accessible from Python and Go, we need a reliable FFI bridge. This project uses a simple math library as a testbed to work through the challenges of cross-language bindings before applying the approach to the real crate.
+The `virtee/sev` crate provides Rust APIs for AMD SEV (Secure Encrypted Virtualization). To make these capabilities accessible from Python, Go, and JavaScript, we need a reliable FFI bridge. This project uses a simple math library as a testbed to work through the challenges of cross-language bindings before applying the approach to the real crate.
 
 ## What's here
 
-A Rust workspace with six domain crates (core, complex, polynomials, linear-algebra, trig, sequences) and an FFI crate that exposes 52 functions via [Mozilla UniFFI](https://github.com/mozilla/uniffi-rs). The FFI crate acts as a boundary layer — it defines UniFFI-compatible wrapper types and thin functions that delegate to the internal crates, keeping domain code free of FFI concerns.
+A Rust workspace with six domain crates and a per-crate FFI layer that exposes functions via [Mozilla UniFFI](https://github.com/mozilla/uniffi-rs). Each FFI crate acts as a boundary layer — it defines UniFFI-compatible wrapper types and thin functions that delegate to the corresponding lib crate, keeping domain code free of FFI concerns. Bindings are generated for Python (via maturin), Go (via uniffi-bindgen-go), and JS/WASM (via uniffi-bindgen-go + wasm-pack).
 
 ### Key challenges explored
 
 - **Types UniFFI can't cross directly** — tuples, fixed-size arrays, and tuple enum variants all required wrapper Record types (see [docs/ffi-conversion-pitfalls.md](docs/ffi-conversion-pitfalls.md))
+- **Per-crate FFI separation** — each lib crate has its own FFI crate under `crates/ffi/`, enabling independent versioning and releases (see [docs/adr-ffi-crate-separation.md](docs/adr-ffi-crate-separation.md))
 - **Python packaging with maturin** — maturin builds Rust, runs uniffi-bindgen, and produces a wheel in one step
-- **Python submodules over a flat namespace** — UniFFI generates one file; a [generator script](bindings/python/scripts/generate_modules.py) splits exports into domain submodules
 - **Go bindings via uniffi-bindgen-go** — community tool from NordSecurity, static linking with CGo
-- **Monorepo Go module** — subdirectory module path (`github.com/<owner>/<repo>/bindings/go`)
+- **JS/WASM bindings** — WASM compilation with TypeScript wrappers and npm packaging
+- **Cascading version pipeline** — lib crate version bumps automatically propagate to FFI crates with semver-aware bumping
+- **Per-crate release workflow** — independent GitHub releases with per-language artifacts and rollback support
 
 ## Project structure
 
@@ -28,80 +30,119 @@ crates/
   linear-algebra/    Matrix operations, solvers, vector math
   trig/              Trigonometry, geometry, distance functions
   sequences/         Sequences, combinatorics, number theory
-  ffi/               UniFFI wrapper layer (cdylib + staticlib)
+  ffi/
+    core/            FFI wrapper for core
+    complex/         FFI wrapper for complex
+    polynomials/     FFI wrapper for polynomials
+    linear-algebra/  FFI wrapper for linear-algebra
+    trig/            FFI wrapper for trig
+    sequences/       FFI wrapper for sequences
+    types/           Shared FFI types (no corresponding lib crate)
+    tools/           Build tooling (excluded from workspace)
 
-bindings/
-  python/            Maturin-packaged Python bindings
-  go/                Go module with static library
+scripts/
+  sync-ffi-versions.sh        Cascade lib version bumps to FFI crates
+  check-ffi-coverage.sh       Verify FFI source changes for lib API changes
+  check-ffi-versions.sh       Validate FFI versions >= lib versions
+  sync-workspace-versions.sh  Sync root Cargo.toml workspace dep versions
+  check-workspace-versions.sh Validate workspace dep versions match crates
+  release-body.sh             Generate GitHub release notes with asset tables
 
 examples/
-  demo.py            Python smoke test
-  demo.go            Go smoke test (run from bindings/go/)
+  py-demo/           Python smoke test
+  go-demo/           Go smoke test
+  js-demo/           JS smoke test
 
 docs/                Design decisions and pitfall documentation
 ```
 
-## Template setup
-
-When creating a new project from this template, set these variables in the `Makefile` (or override via environment/command-line):
-
-| Variable | Default | Description |
-|---|---|---|
-| `GITHUB_REPO` | `github.com/amd-cmaxwell/ffi-testing` | GitHub repo path (used for Go module paths) |
-| `GO_MODULE_BASE` | `$(GITHUB_REPO)/bindings/go` | Go module import base |
-| `NPM_SCOPE` | `@amd-cmaxwell` | npm scope for JS/WASM packages |
-
-After updating these values, run `make generate-all` to regenerate all bindings with the new paths. You'll also need to update `examples/demo.go` to use the new Go import path.
-
-The CI workflows (`.github/workflows/ci.yml` and `release.yml`) define `NPM_SCOPE` as an env var — update it there as well.
-
-## Quick start
-
-### Python
+## Setup
 
 ```bash
-pipx install git+https://github.com/<owner>/<repo>.git@math-monorepo-uniffi#subdirectory=bindings/python
-uniffi-testing-ffi-python
+make setup    # configures git hooks and installs build tools
 ```
 
-Or from a local branch:
+This sets up the `.githooks/` directory as the git hooks path. The pre-commit hook automatically:
+1. Syncs FFI crate versions when lib versions change (semver-aware cascading)
+2. Checks that lib crate source changes have corresponding FFI updates
+3. Syncs workspace dependency versions in the root `Cargo.toml`
+4. Validates FFI and workspace version alignment
+
+### Repository variables
+
+When creating a new project from this template, configure these as GitHub repository variables (Settings > Secrets and variables > Actions > Variables):
+
+| Variable | Description |
+|---|---|
+| `REPO_OWNER` | GitHub owner/org (used for package naming) |
+| `REPO_NAME` | Repository name |
+| `PKG_SUFFIX` | Package name suffix (e.g. `-ffi`) |
+| `NPM_SCOPE` | npm scope for JS packages (e.g. `@my-org`) |
+
+The Makefile resolves these dynamically from the git remote by default. Override `REPO_SLUG`, `REPO_OWNER`, `REPO_NAME`, `PKG_SUFFIX`, or `NPM_SCOPE` as needed.
+
+## Building bindings
 
 ```bash
-pip install bindings/python/
-uniffi-testing-ffi-python
+make generate-python    # Build Python wheels for all FFI crates
+make generate-go        # Generate Go modules with CGO static libs
+make generate-js        # Build WASM + TS bindings and pack npm tarballs
+make generate-all       # All of the above
 ```
 
-### Go
+## Testing
 
 ```bash
-GOPROXY=direct go install github.com/<owner>/<repo>/bindings/go/cmd/uniffi-testing-ffi-go@math-monorepo-uniffi
-uniffi-testing-ffi-go
+make test               # Run Rust tests
+make test-python        # Run Python smoke test (examples/py-demo)
+make test-go            # Run Go smoke test (examples/go-demo)
+make test-js            # Run JS smoke test (examples/js-demo)
+make test-all           # All binding tests
 ```
 
-Or from a local branch:
+## CI / CD
 
-```bash
-cd bindings/go
-go run cmd/uniffi-testing-ffi-go/main.go
-```
+### CI (`ci.yml`)
 
+Runs on push to main, pull requests, and manual dispatch. Validates FFI coverage and version alignment, runs Rust tests on Linux/macOS/Windows, builds all three binding flavors, and runs smoke tests for each.
 
-## Regenerating bindings
+### Release (`release.yml`)
 
-```bash
-make generate-python    # maturin develop --release
-make generate-go        # uniffi-bindgen-go + copy + inject CGo LDFLAGS
-make test-python        # run Python smoke test
-make test-go            # run Go smoke test
-```
+Triggered manually via `workflow_dispatch`. Supports optional inputs to scope the release to specific crates:
+- **`crates`** — space-separated lib crate names (e.g. `core trig`)
+- **`ffi-libs`** — space-separated FFI lib names
+
+When inputs are empty, all changed crates are released (default).
+
+The release flow:
+1. Verifies CI passed on HEAD
+2. Detects version changes by comparing against git tags
+3. Builds Python, Go, and JS bindings for changed FFI crates
+4. Commits bindings to the `bindings` branch and tags them
+5. Creates per-crate GitHub releases with artifact tables
+6. Rolls back tags, releases, and the bindings branch on failure
+
+#### Versioning
+
+- **Lib crates** are tagged as `crates/{name}/v{version}`
+- **FFI crates** are tagged as `crates/ffi/{name}/v{version}` (Rust release) and `ffi/{name}/v{version}` (bindings)
+- **Go modules** are tagged as `bindings/go/{pkg}/v{version}`
+
+When a lib crate version changes, `sync-ffi-versions.sh` automatically bumps the corresponding FFI crate:
+- If the FFI version is behind the lib version, it matches the lib version
+- If the FFI version is already at or ahead, it gets a patch bump
+- The sync is idempotent across pre-commit hook re-runs
+
+FFI-only releases (no lib change) are distinguished with a `-ffi` title suffix and a release body notice.
 
 ## Dependencies
 
-- Rust toolchain (for building the FFI crate)
+- Rust toolchain (for building FFI crates)
 - [maturin](https://www.maturin.rs/) (for Python packaging)
-- [uniffi-bindgen-go](https://github.com/NordSecurity/uniffi-bindgen-go) v0.5.0+v0.29.5 (for Go bindings)
+- [uniffi-bindgen-go](https://github.com/NordSecurity/uniffi-bindgen-go) (for Go bindings)
+- Node.js >= 20, pnpm (for JS/WASM bindings)
 - Python >= 3.8, Go >= 1.21
 
 ## Next steps
 
-Apply this approach to [virtee/sev](https://github.com/virtee/sev) to provide Python and Go interfaces for AMD SEV attestation and key management.
+Apply this approach to [virtee/sev](https://github.com/virtee/sev) to provide Python, Go, and JS interfaces for AMD SEV attestation and key management.
