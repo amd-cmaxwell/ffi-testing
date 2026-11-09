@@ -43,30 +43,55 @@ ffi_tag="ffi/${crate_dir}/${version}"
 go_pkg="${repo_us}_${crate_us}${suffix_us}"
 go_tag="bindings/go/${go_pkg}/${version}"
 
-py_link="[source](${repo_url}/tree/${ffi_tag}/bindings/python)"
+py_pkg="${repo_us}_${crate_us}${suffix_us}"
+npm_scope="${NPM_SCOPE:-@${REPO_OWNER:-}}"
+js_pkg="${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
+
+py_link="[source](${repo_url}/tree/${ffi_tag}/bindings/python/${py_pkg})"
 go_link="[source](${repo_url}/tree/${go_tag}/bindings/go/${go_pkg})"
-js_link="[source](${repo_url}/tree/${ffi_tag}/bindings/js)"
+js_link="[source](${repo_url}/tree/${ffi_tag}/bindings/js/${js_pkg})"
+
+rows_go=()
+rows_js=()
+rows_py_linux_aarch64=()
+rows_py_linux_x86_64=()
+rows_py_macos_arm64=()
+rows_py_macos_x86_64=()
+rows_py_windows=()
+rows_other=()
 
 for asset in "${assets[@]}"; do
   fname=$(basename "$asset")
   link="[${fname}](${repo_url}/releases/download/${tag}/${fname})"
 
-  if echo "$fname" | grep -qi 'manylinux.*x86_64'; then
-    echo "| **Python** | Linux | x86_64 | ${link} | ${py_link} |"
-  elif echo "$fname" | grep -qi 'manylinux.*aarch64'; then
-    echo "| **Python** | Linux | aarch64 | ${link} | ${py_link} |"
+  if echo "$fname" | grep -qi 'manylinux.*aarch64'; then
+    rows_py_linux_aarch64+=("| **Python** | Linux | aarch64 | ${link} | ${py_link} |")
+  elif echo "$fname" | grep -qi 'manylinux.*x86_64'; then
+    rows_py_linux_x86_64+=("| **Python** | Linux | x86_64 | ${link} | ${py_link} |")
   elif echo "$fname" | grep -qi 'macosx.*arm64'; then
-    echo "| **Python** | macOS | Apple Silicon | ${link} | ${py_link} |"
+    rows_py_macos_arm64+=("| **Python** | macOS | Apple Silicon | ${link} | ${py_link} |")
   elif echo "$fname" | grep -qi 'macosx.*x86_64'; then
-    echo "| **Python** | macOS | Intel | ${link} | ${py_link} |"
+    rows_py_macos_x86_64+=("| **Python** | macOS | Intel | ${link} | ${py_link} |")
   elif echo "$fname" | grep -qi 'win.*amd64\|windows.*x86_64'; then
-    echo "| **Python** | Windows | x64 | ${link} | ${py_link} |"
+    rows_py_windows+=("| **Python** | Windows | x64 | ${link} | ${py_link} |")
   elif echo "$fname" | grep -qi '\.tgz$'; then
-    echo "| **JS/TS** | All | All | ${link} | ${js_link} |"
+    rows_js+=("| **JS/TS** | All | All | ${link} | ${js_link} |")
   else
-    echo "| — | — | — | ${link} | — |"
+    rows_other+=("| — | — | — | ${link} | — |")
   fi
 done
 
 go_get="\`go get ${repo_url#https://}/bindings/go/${go_pkg}@${version}\`"
-echo "| **Go** | All | All | ${go_get} | ${go_link} |"
+rows_go+=("| **Go** | All | All | ${go_get} | ${go_link} |")
+
+for row in \
+  "${rows_go[@]}" \
+  "${rows_js[@]}" \
+  "${rows_py_linux_aarch64[@]}" \
+  "${rows_py_linux_x86_64[@]}" \
+  "${rows_py_macos_arm64[@]}" \
+  "${rows_py_macos_x86_64[@]}" \
+  "${rows_py_windows[@]}" \
+  "${rows_other[@]}"; do
+  echo "$row"
+done
