@@ -49,7 +49,7 @@ npm_scope="${NPM_SCOPE:-@${REPO_OWNER:-}}"
 js_pkg="${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
 
 ffi_crate_name="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
-ffi_crate_link="[${ffi_crate_name}](${repo_url}/tree/${ffi_tag}/crates/ffi/${crate_dir})"
+ffi_crate_link="[${ffi_crate_name} @ ${version}](${repo_url}/tree/${ffi_tag}/crates/ffi/${crate_dir})"
 
 if [ -n "${BINDINGS_COMMIT:-}" ]; then
   echo "**Bindings commit:** [\`${BINDINGS_COMMIT:0:7}\`](${repo_url}/commit/${BINDINGS_COMMIT}) (on \`bindings\` branch)"
