@@ -309,19 +309,24 @@ generate-wasm-ts: _check-repo-owner build-tools-wasm
 			$(CURDIR)/templates/js/package.json > $$pkg_dir/package.json; \
 		cp $(CURDIR)/templates/js/tsconfig.json $$pkg_dir/tsconfig.json; \
 	done
+	@$(MAKE) fix-wasm-ts-imports
 	@echo "  wasm bindings written to $(JS_BINDINGS_DIR)/"
+
+# The codegen emits extensionless relative imports. Add .ts extensions
+# so tsc (with rewriteRelativeImportExtensions) rewrites them to .js
+# in the compiled output. Skip specifiers that already have an extension.
+fix-wasm-ts-imports:
+	@for f in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/src/*.ts; do \
+		[ -f "$$f" ] || continue; \
+		sed -i -e "s/from '\.\/\([^'.]*\)'/from '.\/\1.ts'/g" \
+		       -e 's/from "\.\/\([^".]*\)"/from ".\/\1.ts"/g' "$$f"; \
+	done
 
 # Compiles generated TypeScript sources
 compile-wasm-ts: js-dependencies generate-wasm-ts
 	@echo "  compiling typescript"
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		( cd "$$pkg_dir" && pnpm exec tsc ); \
-	done
-	@for f in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/dist/*.js \
-	          $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/dist/*.d.ts; do \
-		[ -f "$$f" ] || continue; \
-		sed -i -e "s/from '\.\/\([^']*\)'/from '.\/\1.js'/g" \
-			   -e 's/from "\.\/\([^"]*\)"/from ".\/\1.js"/g' "$$f"; \
 	done
 	@echo "  typescript compiled at $(JS_BINDINGS_DIR)/"
 
@@ -330,7 +335,7 @@ generate-js: compile-wasm-ts
 	@mkdir -p $(NPM_TARBALLS_DIR)
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		echo "  packing $$(basename $$pkg_dir)"; \
-		( cd "$$pkg_dir" && npm pack --ignore-scripts --pack-destination $(NPM_TARBALLS_DIR) ); \
+		( cd "$$pkg_dir" && npm pack --pack-destination $(NPM_TARBALLS_DIR) ); \
 	done
 	@echo "  npm tarballs written to $(NPM_TARBALLS_DIR)/"
 
@@ -339,13 +344,13 @@ install-js: generate-js
 	@if [ -n "$(JS_PROJECT_DIR)" ]; then \
 		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
 			echo "  installing $$(basename $$tgz) into $(JS_PROJECT_DIR)"; \
-			( cd $(JS_PROJECT_DIR) && npm install --ignore-scripts $$tgz ); \
+			( cd $(JS_PROJECT_DIR) && npm install $$tgz ); \
 		done; \
 		echo "  all js packages installed into $(JS_PROJECT_DIR)/"; \
 	else \
 		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
 			echo "  installing $$(basename $$tgz) globally"; \
-			npm install -g --ignore-scripts $$tgz; \
+			npm install -g $$tgz; \
 		done; \
 		echo "  all js packages installed globally"; \
 	fi
