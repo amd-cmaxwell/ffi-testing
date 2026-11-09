@@ -159,6 +159,20 @@ jobs:
             prev_ver=$(version_at_tag "$prev_tag" "$toml")
 
             if [ "$cur_ver" != "$prev_ver" ]; then
+              # No previous FFI tag means this is the first time seeing this crate;
+              # only treat it as changed if the corresponding lib crate also changed
+              # (i.e. version was set during initial release, not an independent FFI change)
+              if [ -z "$prev_tag" ] && [ -f "crates/${crate_dir}/Cargo.toml" ]; then
+                lib_in_changed=false
+                for lib in "${changed_libs[@]}"; do
+                  if [ "$lib" = "$crate_dir" ]; then lib_in_changed=true; break; fi
+                done
+                if ! $lib_in_changed; then
+                  echo "::notice::FFI crate has no previous tag and lib unchanged: ${crate_path} ${cur_ver} (skipped)"
+                  continue
+                fi
+              fi
+
               ffi_changed+=("$(echo "$crate_dir" | tr '-' '_')")
 
               # Only add to release map if the lib crate didn't already change
