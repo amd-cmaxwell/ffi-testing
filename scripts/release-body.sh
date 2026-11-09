@@ -43,7 +43,7 @@ ffi_tag="ffi/${crate_dir}/${version}"
 go_pkg="${repo_us}_${crate_us}${suffix_us}"
 go_tag="bindings/go/${go_pkg}/${version}"
 
-py_pkg="${repo_us}_${crate_us}${suffix_us}"
+py_pkg="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
 npm_scope="${NPM_SCOPE:-@${REPO_OWNER:-}}"
 js_pkg="${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
 
