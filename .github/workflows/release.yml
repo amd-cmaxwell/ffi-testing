@@ -541,18 +541,17 @@ jobs:
       - name: Delete FFI bindings tags
         shell: bash
         env:
-          CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+          FFI_LIBS: ${{ needs.detect-changes.outputs.ffi-libs }}
         run: |
           set -uo pipefail
-          if [ -z "$CRATE_VERSIONS" ] || [ "$CRATE_VERSIONS" = "{}" ]; then
+          if [ -z "$FFI_LIBS" ]; then
             echo "::notice::No FFI bindings tags to roll back"
             exit 0
           fi
-          for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
-            case "$crate_path" in crates/ffi/*) ;; *) continue ;; esac
-            crate_dir=$(basename "$crate_path")
-            cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
-            tag="ffi/${crate_dir}/v${cur_ver}"
+          for mod in $FFI_LIBS; do
+            crate_dir=$(echo "$mod" | tr '_' '-')
+            version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+            tag="ffi/${crate_dir}/v${version}"
             if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
               echo "::notice::Deleting FFI bindings tag ${tag}"
               git push origin --delete "${tag}" || true
