@@ -20,10 +20,14 @@ case "$tag" in
   crates/ffi/*)
     is_ffi=true
     lib_crate="${tag#crates/ffi/}" lib_crate="${lib_crate%%/*}"
-    lib_ver=$(grep '^version' "crates/${lib_crate}/Cargo.toml" 2>/dev/null | head -1 | sed 's/.*"\(.*\)"/\1/')
-    lib_tag="crates/${lib_crate}/v${lib_ver}"
-    lib_release_link="[${REPO_NAME:-}-${lib_crate} v${lib_ver}](${repo_url}/releases/tag/${lib_tag})"
-    echo "> **FFI-only release** — this updates the foreign function interface bindings for \`${lib_crate}\`, not the core Rust library. The underlying lib crate release is ${lib_release_link}."
+    if [ -f "crates/${lib_crate}/Cargo.toml" ]; then
+      lib_ver=$(grep '^version' "crates/${lib_crate}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+      lib_tag="crates/${lib_crate}/v${lib_ver}"
+      lib_release_link="[${REPO_NAME:-}-${lib_crate} v${lib_ver}](${repo_url}/releases/tag/${lib_tag})"
+      echo "> **FFI-only release** — this updates the foreign function interface bindings for \`${lib_crate}\`, not the core Rust library. The underlying lib crate release is ${lib_release_link}."
+    else
+      echo "> **FFI-only release** — this updates the \`${lib_crate}\` FFI crate. There is no corresponding core Rust library crate."
+    fi
     echo
     ;;
 esac

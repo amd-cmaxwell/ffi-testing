@@ -457,16 +457,29 @@ jobs:
               *)            title="${REPO_NAME}-${crate_dir} v${cur_ver}" ;;
             esac
 
-            body=$(./scripts/release-body.sh "${tag}" "${assets[@]}")
+            echo "::group::Release ${tag}"
+            echo "::notice::Title: ${title}"
+            echo "::notice::Assets: ${assets[*]:-<none>}"
+
+            echo "::notice::Generating release body..."
+            if ! body=$(./scripts/release-body.sh "${tag}" "${assets[@]}"); then
+              echo "::error::release-body.sh failed for ${tag}"
+              exit 1
+            fi
+
             if [ -n "$body" ]; then
+              echo "::notice::Release body:"
+              echo "$body"
               gh release create "${tag}" "${assets[@]}" \
                 --title "$title" \
                 --notes "$body"
             else
+              echo "::notice::No release body generated, using auto-generated notes"
               gh release create "${tag}" "${assets[@]}" \
                 --title "$title" \
                 --generate-notes
             fi
+            echo "::endgroup::"
           done
 
   rollback:
