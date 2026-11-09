@@ -2,6 +2,15 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      crates:
+        description: 'Space-separated list of lib crates to release (e.g. "core trig"). Leave empty for all changed.'
+        required: false
+        default: ''
+      ffi-libs:
+        description: 'Space-separated list of FFI libs to release (e.g. "core trig"). Leave empty for all changed.'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -60,6 +69,9 @@ jobs:
       - name: Find changed crates since last release
         id: diff
         shell: bash
+        env:
+          INPUT_CRATES: ${{ inputs.crates }}
+          INPUT_FFI_LIBS: ${{ inputs.ffi-libs }}
         run: |
           set -euo pipefail
 
@@ -79,6 +91,32 @@ jobs:
             fi
           }
 
+          # Build filter sets from inputs (empty = all)
+          filter_crates=()
+          if [ -n "$INPUT_CRATES" ]; then
+            for c in $INPUT_CRATES; do
+              filter_crates+=("$(echo "$c" | tr '_' '-')")
+            done
+            echo "::notice::Filtering lib crates: ${filter_crates[*]}"
+          fi
+
+          filter_ffi=()
+          if [ -n "$INPUT_FFI_LIBS" ]; then
+            for f in $INPUT_FFI_LIBS; do
+              filter_ffi+=("$(echo "$f" | tr '_' '-')")
+            done
+            echo "::notice::Filtering FFI libs: ${filter_ffi[*]}"
+          fi
+
+          in_filter() {
+            local needle="$1"; shift
+            if [ $# -eq 0 ]; then return 0; fi
+            for item in "$@"; do
+              [ "$item" = "$needle" ] && return 0
+            done
+            return 1
+          }
+
           # Pass 1: Library crates — always produce a release when changed
           changed_libs=()
           crate_json="{"
@@ -88,6 +126,8 @@ jobs:
             [ -f "$toml" ] || continue
             crate_path=$(dirname "$toml")
             crate_dir=$(basename "$crate_path")
+
+            in_filter "$crate_dir" "${filter_crates[@]}" || continue
 
             prev_tag=$(latest_tag_for "${crate_path}")
             cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
@@ -111,6 +151,8 @@ jobs:
             crate_path=$(dirname "$toml")
             crate_dir=$(basename "$crate_path")
             [ "$crate_dir" = "tools" ] && continue
+
+            in_filter "$crate_dir" "${filter_ffi[@]}" || continue
 
             prev_tag=$(latest_tag_for "${crate_path}")
             cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
