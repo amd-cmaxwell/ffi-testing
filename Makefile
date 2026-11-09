@@ -385,6 +385,7 @@ test-go: install-go
 		exit $$status
 
 test-js:
+	@cp $(CURDIR)/examples/js-demo/package.template.json $(CURDIR)/examples/js-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
 	@echo "  running smoke test"
 	node --test examples/js-demo/main.mjs

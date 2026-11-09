@@ -271,12 +271,12 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f bindings/go/ bindings/python/
-          git add -f bindings/js/package.json bindings/js/pnpm-workspace.yaml
+          git add bindings/go/ bindings/python/
+          git add bindings/js/package.json bindings/js/pnpm-workspace.yaml
           for pkg_dir in bindings/js/"${NPM_SCOPE}"/*/; do
             [ -d "$pkg_dir" ] || continue
-            git add -f "${pkg_dir}package.json" "${pkg_dir}tsconfig.json" 2>/dev/null || true
-            [ -d "${pkg_dir}src" ] && git add -f "${pkg_dir}src/"
+            git add "${pkg_dir}package.json" "${pkg_dir}tsconfig.json" 2>/dev/null || true
+            [ -d "${pkg_dir}src" ] && git add "${pkg_dir}src/"
           done
           if git diff --cached --quiet; then
             echo "::warning::No binding changes to commit"
@@ -284,7 +284,7 @@ jobs:
           else
             summary=$(echo "$CRATE_VERSIONS" | jq -r 'to_entries | map("\(.key) v\(.value)") | join(", ")')
             echo "::notice::Committing bindings for: ${summary}"
-            git commit -m "chore: Commit FFI bindings for ${summary}"
+            SKIP_BINDINGS_CHECK=1 git commit -m "chore: Commit FFI bindings for ${summary}"
             git push origin HEAD:main
             echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
