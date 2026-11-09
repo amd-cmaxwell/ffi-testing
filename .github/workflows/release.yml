@@ -61,10 +61,18 @@ jobs:
       has-ffi-changes: ${{ steps.diff.outputs.has_ffi_changes }}
       crate-versions: ${{ steps.diff.outputs.crate_versions }}
       has-crate-changes: ${{ steps.diff.outputs.has_crate_changes }}
+      pre-existing-tags: ${{ steps.snapshot-tags.outputs.tags }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Snapshot pre-existing tags
+        id: snapshot-tags
+        shell: bash
+        run: |
+          tags=$(git ls-remote --tags origin | awk '{print $2}' | sed 's|refs/tags/||' | tr '\n' ' ')
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
 
       - name: Find changed crates since last release
         id: diff
@@ -511,6 +519,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CRATE_VERSIONS: ${{ needs.detect-changes.outputs.crate-versions }}
+          PRE_EXISTING_TAGS: ${{ needs.detect-changes.outputs.pre-existing-tags }}
         run: |
           set -uo pipefail
           if [ -z "$CRATE_VERSIONS" ] || [ "$CRATE_VERSIONS" = "{}" ]; then
@@ -520,6 +529,10 @@ jobs:
           for crate_path in $(echo "$CRATE_VERSIONS" | jq -r 'keys[]'); do
             cur_ver=$(echo "$CRATE_VERSIONS" | jq -r --arg k "$crate_path" '.[$k]')
             tag="${crate_path}/v${cur_ver}"
+            if echo " $PRE_EXISTING_TAGS " | grep -qF " ${tag} "; then
+              echo "::notice::Skipping pre-existing tag ${tag}"
+              continue
+            fi
             if gh release view "${tag}" >/dev/null 2>&1; then
               echo "::notice::Deleting release ${tag}"
               gh release delete "${tag}" --yes --cleanup-tag || true
@@ -533,6 +546,7 @@ jobs:
         shell: bash
         env:
           FFI_LIBS: ${{ needs.detect-changes.outputs.ffi-libs }}
+          PRE_EXISTING_TAGS: ${{ needs.detect-changes.outputs.pre-existing-tags }}
         run: |
           set -uo pipefail
           repo_us=$(echo "$REPO_NAME" | tr '-' '_')
@@ -546,6 +560,10 @@ jobs:
             pkg="${repo_us}_${mod}${suffix_us}"
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             tag="bindings/go/${pkg}/v${version}"
+            if echo " $PRE_EXISTING_TAGS " | grep -qF " ${tag} "; then
+              echo "::notice::Skipping pre-existing tag ${tag}"
+              continue
+            fi
             if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
               echo "::notice::Deleting Go module tag ${tag}"
               git push origin --delete "${tag}" || true
@@ -556,6 +574,7 @@ jobs:
         shell: bash
         env:
           FFI_LIBS: ${{ needs.detect-changes.outputs.ffi-libs }}
+          PRE_EXISTING_TAGS: ${{ needs.detect-changes.outputs.pre-existing-tags }}
         run: |
           set -uo pipefail
           if [ -z "$FFI_LIBS" ]; then
@@ -566,6 +585,10 @@ jobs:
             crate_dir=$(echo "$mod" | tr '_' '-')
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             tag="ffi/${crate_dir}/v${version}"
+            if echo " $PRE_EXISTING_TAGS " | grep -qF " ${tag} "; then
+              echo "::notice::Skipping pre-existing tag ${tag}"
+              continue
+            fi
             if git ls-remote --tags origin "refs/tags/${tag}" | grep -q .; then
               echo "::notice::Deleting FFI bindings tag ${tag}"
               git push origin --delete "${tag}" || true
