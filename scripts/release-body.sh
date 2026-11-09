@@ -15,6 +15,19 @@ if [ ${#assets[@]} -eq 0 ] && [ -z "${BINDINGS_COMMIT:-}" ]; then
   exit 0
 fi
 
+is_ffi=false
+case "$tag" in
+  crates/ffi/*)
+    is_ffi=true
+    lib_crate="${tag#crates/ffi/}" lib_crate="${lib_crate%%/*}"
+    lib_ver=$(grep '^version' "crates/${lib_crate}/Cargo.toml" 2>/dev/null | head -1 | sed 's/.*"\(.*\)"/\1/')
+    lib_tag="crates/${lib_crate}/v${lib_ver}"
+    lib_release_link="[${REPO_NAME:-}-${lib_crate} v${lib_ver}](${repo_url}/releases/tag/${lib_tag})"
+    echo "> **FFI-only release** — this updates the foreign function interface bindings for \`${lib_crate}\`, not the core Rust library. The underlying lib crate release is ${lib_release_link}."
+    echo
+    ;;
+esac
+
 if [ -n "${BINDINGS_COMMIT:-}" ]; then
   echo "**Bindings commit:** [\`${BINDINGS_COMMIT:0:7}\`](${repo_url}/commit/${BINDINGS_COMMIT}) (on \`bindings\` branch)"
   echo
@@ -27,7 +40,7 @@ fi
 cat <<'HEADER'
 ## 📦 Assets by Platform
 
-| Language | Platform | Architecture | Asset | Bindings |
+| Language | Platform | Architecture | Asset | Source |
 | :--- | :--- | :--- | :--- | :--- |
 HEADER
 
@@ -47,10 +60,12 @@ py_pkg="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
 npm_scope="${NPM_SCOPE:-@${REPO_OWNER:-}}"
 js_pkg="${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
 
+rust_link="[source](${repo_url}/tree/${tag}/crates/${crate_dir})"
 py_link="[source](${repo_url}/tree/${ffi_tag}/bindings/python/${py_pkg})"
 go_link="[source](${repo_url}/tree/${go_tag}/bindings/go/${go_pkg})"
 js_link="[source](${repo_url}/tree/${ffi_tag}/bindings/js/${js_pkg})"
 
+rows_rust=()
 rows_go=()
 rows_js=()
 rows_py_linux_aarch64=()
@@ -81,6 +96,13 @@ for asset in "${assets[@]}"; do
   fi
 done
 
+if $is_ffi; then
+  rows_rust+=("| **Rust** | — | — | N/A | — |")
+else
+  cargo_add="\`cargo add --git ${repo_url} --tag ${tag} ${crate_dir}\`"
+  rows_rust+=("| **Rust** | All | All | ${cargo_add} | ${rust_link} |")
+fi
+
 go_get="\`go get ${repo_url#https://}/bindings/go/${go_pkg}@${version}\`"
 rows_go+=("| **Go** | All | All | ${go_get} | ${go_link} |")
 
@@ -92,6 +114,7 @@ for row in \
   "${rows_py_macos_arm64[@]}" \
   "${rows_py_macos_x86_64[@]}" \
   "${rows_py_windows[@]}" \
+  "${rows_rust[@]}" \
   "${rows_other[@]}"; do
   echo "$row"
 done

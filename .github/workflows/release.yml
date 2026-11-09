@@ -410,14 +410,19 @@ jobs:
             fi
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
 
+            case "$crate_path" in
+              crates/ffi/*) title="${REPO_NAME}-${crate_dir}-ffi v${cur_ver}" ;;
+              *)            title="${REPO_NAME}-${crate_dir} v${cur_ver}" ;;
+            esac
+
             body=$(./scripts/release-body.sh "${tag}" "${assets[@]}")
             if [ -n "$body" ]; then
               gh release create "${tag}" "${assets[@]}" \
-                --title "${REPO_NAME}-${crate_dir} v${cur_ver}" \
+                --title "$title" \
                 --notes "$body"
             else
               gh release create "${tag}" "${assets[@]}" \
-                --title "${REPO_NAME}-${crate_dir} v${cur_ver}" \
+                --title "$title" \
                 --generate-notes
             fi
           done
