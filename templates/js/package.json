@@ -11,9 +11,6 @@
     },
     "./src/*.wasm": "./src/*.wasm"
   },
-  "scripts": {
-    "prepare": "tsc"
-  },
   "files": [
     "dist/",
     "src/*.wasm"

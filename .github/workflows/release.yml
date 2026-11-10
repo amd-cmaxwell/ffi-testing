@@ -359,6 +359,7 @@ jobs:
             [ -d "$pkg_dir" ] || continue
             git add -f "${pkg_dir}package.json" "${pkg_dir}tsconfig.json" 2>/dev/null || true
             [ -d "${pkg_dir}src" ] && git add -f "${pkg_dir}src/"
+            [ -d "${pkg_dir}dist" ] && git add -f "${pkg_dir}dist/"
           done
 
           if git diff --cached --quiet; then
