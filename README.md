@@ -8,7 +8,7 @@ The `virtee/sev` crate provides Rust APIs for AMD SEV (Secure Encrypted Virtuali
 
 ## What's here
 
-A Rust workspace with six domain crates and a per-crate FFI layer that exposes functions via [Mozilla UniFFI](https://github.com/mozilla/uniffi-rs). Each FFI crate acts as a boundary layer — it defines UniFFI-compatible wrapper types and thin functions that delegate to the corresponding lib crate, keeping domain code free of FFI concerns. Bindings are generated for Python (via maturin), Go (via uniffi-bindgen-go), and JS/WASM (via uniffi-bindgen-go + wasm-pack).
+A Rust workspace with six domain crates and a per-crate FFI layer that exposes functions via [Mozilla UniFFI](https://github.com/mozilla/uniffi-rs). Each FFI crate acts as a boundary layer — it defines UniFFI-compatible wrapper types and thin functions that delegate to the corresponding lib crate, keeping domain code free of FFI concerns. Bindings are generated for Python (via maturin), Go (via uniffi-bindgen-go), and JS/WASM (via uniffi-bindgen-react-native's `wasm2` mode).
 
 ### Key challenges explored
 
@@ -16,7 +16,7 @@ A Rust workspace with six domain crates and a per-crate FFI layer that exposes f
 - **Per-crate FFI separation** — each lib crate has its own FFI crate under `crates/ffi/`, enabling independent versioning and releases (see [docs/adr-ffi-crate-separation.md](docs/adr-ffi-crate-separation.md))
 - **Python packaging with maturin** — maturin builds Rust, runs uniffi-bindgen, and produces a wheel in one step
 - **Go bindings via uniffi-bindgen-go** — community tool from NordSecurity, static linking with CGo
-- **JS/WASM bindings** — WASM compilation with TypeScript wrappers and npm packaging
+- **JS/WASM bindings** — WASM compilation with TypeScript wrappers and npm packaging, verified in both Node.js and browser contexts
 - **Cascading version pipeline** — lib crate version bumps automatically propagate to FFI crates with semver-aware bumping
 - **Per-crate release workflow** — independent GitHub releases with per-language artifacts and rollback support
 
@@ -51,7 +51,8 @@ scripts/
 examples/
   py-demo/           Python smoke test
   go-demo/           Go smoke test
-  js-demo/           JS smoke test
+  js-demo/           JS smoke test (Node.js)
+  web-demo/          Browser smoke test (Vite + vanilla TS)
 
 docs/                Design decisions and pitfall documentation
 ```
@@ -97,7 +98,15 @@ make test               # Run Rust tests
 make test-python        # Run Python smoke test (examples/py-demo)
 make test-go            # Run Go smoke test (examples/go-demo)
 make test-js            # Run JS smoke test (examples/js-demo)
+make test-web           # Build browser demo with Vite (examples/web-demo)
 make test-all           # All binding tests
+make clean-web          # Remove web-demo generated files
+```
+
+The `web-demo` is a browser-based interactive calculator that exercises every math module via WASM. It also runs the same smoke tests as `js-demo` on page load. After `make test-web`, you can open it locally:
+
+```bash
+cd examples/web-demo && npx vite
 ```
 
 ## CI / CD
