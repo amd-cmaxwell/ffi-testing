@@ -24,32 +24,47 @@ both branches:
 ### Branch flow
 
 ```mermaid
-gitGraph
+---
+config:
+  theme: 'base'
+  gitGraph:
+    rotateCommitLabel: true
+    parallelCommits: false
+---
+gitGraph LR:
   commit id: "initial"
-  commit id: "feat: add core lib"
-  commit id: "feat: add trig lib"
+  commit id: "add core lib"
+  commit id: "add trig lib" tag: "v0.1.0"
 
   branch bindings
   checkout bindings
-  commit id: "chore: generate bindings v0.1.0" tag: "v0.1.0"
+  commit id: "generate v0.1.0" tag: "ffi/trig/v0.1.0"
 
   checkout main
-  commit id: "fix: core precision bug"
-  commit id: "feat: add polynomials lib"
+  commit id: "fix precision"
+  commit id: "add polynomials" tag: "v0.2.0"
 
   checkout bindings
-  merge main id: "merge main (v0.2.0)"
-  commit id: "chore: generate bindings v0.2.0" tag: "v0.2.0"
+  merge main id: "merge (v0.2.0)"
+  commit id: "generate v0.2.0" tag: "ffi/trig/v0.2.0"
 
   checkout main
-  commit id: "refactor: trig internals"
-  commit id: "feat: add sequences lib"
-  commit id: "feat: add linear algebra lib"
+  commit id: "refactor trig"
+  commit id: "add sequences"
+  commit id: "add linalg" tag: "ffi/trig/v0.3.0"
 
   checkout bindings
-  merge main id: "merge main (v0.3.0)"
-  commit id: "chore: generate bindings v0.3.0" tag: "v0.3.0"
+  merge main id: "merge (v0.3.0)"
+  commit id: "generate v0.3.0" tag: "ffi/trig/v0.3.0"
 ```
+
+Merge commits on the `bindings` branch (e.g. "merge main (v0.2.0)") are
+expected to apply cleanly because no commit on `main` should ever modify
+files inside `bindings/` other than this README. A pre-commit hook
+enforces this on `main`, so the only changes to generated files happen on
+the `bindings` branch itself, avoiding conflicts during the merge step. 
+
+This keeps the full history intact on the `bindings` branch while keeping `main` clean and focused on the evolution of the Rust core library.
 
 ### CI release workflow
 
