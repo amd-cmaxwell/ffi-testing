@@ -324,6 +324,8 @@ fix-wasm-ts-imports:
 
 # Compiles generated TypeScript sources
 compile-wasm-ts: js-dependencies generate-wasm-ts
+	@echo "  installing JS workspace dependencies"
+	@( cd $(JS_BINDINGS_DIR) && pnpm install )
 	@echo "  compiling typescript"
 	@for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		( cd "$$pkg_dir" && pnpm exec tsc ); \
