@@ -20,10 +20,10 @@
        build-tools-py build-tools-go build-tools-wasm \
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
-       test-python test-go test-js test-all \
+       test-python test-go test-js test-web test-all \
        stamp-uniffi-config _check-repo-owner \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
-       clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
+       clean-web clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
 
 # ── Project identity ─────────────────────────────────────────────────────────
 # Resolution order: git remote -> REPO_SLUG -> REPO_OWNER + REPO_NAME.
@@ -393,7 +393,17 @@ test-js:
 	node --test examples/js-demo/main.mjs
 
 
-test-all: test-python test-go test-js
+# Builds the browser-based web-demo with Vite to verify wasm packages work in a frontend context
+test-web:
+	@cp $(CURDIR)/examples/web-demo/package.template.json $(CURDIR)/examples/web-demo/package.json
+	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/web-demo
+	@echo "  installing web-demo dev dependencies"
+	@cd $(CURDIR)/examples/web-demo && npm install
+	@echo "  building web-demo (vite build)"
+	@cd $(CURDIR)/examples/web-demo && npx vite build
+	@echo "  web-demo build succeeded — run 'cd examples/web-demo && npx vite' to open in browser"
+
+test-all: test-python test-go test-js test-web
 
 # ── Cleanup ──────────────────────────────────────────────────────────────────
 # clean            : cargo clean only (removes target/)
@@ -405,6 +415,7 @@ test-all: test-python test-go test-js
 # clean-py-artifacts : removes built Python wheels (dist/pypi/)
 # clean-js-artifacts : removes packed npm tarballs (dist/npm/)
 # clean-artifacts  : removes all distributable artifacts (wheels + tarballs)
+# clean-web        : removes web-demo generated files (node_modules, dist, package.json)
 # clean-all        : cargo clean + bindings + artifacts
 # purge            : everything including local tools
 
@@ -433,6 +444,10 @@ clean-js-artifacts:
 
 clean-artifacts: clean-py-artifacts clean-js-artifacts
 
-clean-all: clean clean-bindings clean-artifacts
+clean-web:
+	rm -rf $(CURDIR)/examples/web-demo/node_modules $(CURDIR)/examples/web-demo/dist
+	rm -f $(CURDIR)/examples/web-demo/package.json $(CURDIR)/examples/web-demo/package-lock.json
+
+clean-all: clean clean-bindings clean-artifacts clean-web
 
 purge: clean-tools clean-all
