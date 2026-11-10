@@ -222,6 +222,11 @@ jobs:
             echo "has_crate_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
+          if [ "$crate_json" = "{}" ] && [ ${#ffi_changed[@]} -eq 0 ]; then
+            echo "::error::No Rust crate or FFI changes detected — nothing to release"
+            exit 1
+          fi
+
   check-ffi-versions:
     name: Check FFI crate versions
     needs: detect-changes
