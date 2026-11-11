@@ -1,18 +1,7 @@
 [workspace]
 members = [
-    "crates/core",
-    "crates/complex",
-    "crates/polynomials",
-    "crates/linear-algebra",
-    "crates/trig",
-    "crates/sequences",
-    "crates/ffi/types",
-    "crates/ffi/core",
-    "crates/ffi/complex",
-    "crates/ffi/polynomials",
-    "crates/ffi/linear-algebra",
-    "crates/ffi/trig",
-    "crates/ffi/sequences",
+    "crates/lib/*",
+    "crates/ffi/*",
 ]
 exclude = [
     "crates/ffi/tools",
@@ -27,12 +16,12 @@ description = "UniFFI testing monorepo"
 
 # version required for cargo publish — must match each crate's [package].version
 [workspace.dependencies]
-uniffi-testing-core = { path = "crates/core", version = "0.1.0" }
-uniffi-testing-complex = { path = "crates/complex", version = "0.1.0" }
-uniffi-testing-polynomials = { path = "crates/polynomials", version = "0.1.0" }
-uniffi-testing-linear-algebra = { path = "crates/linear-algebra", version = "0.1.0" }
-uniffi-testing-trig = { path = "crates/trig", version = "0.1.0" }
-uniffi-testing-sequences = { path = "crates/sequences", version = "0.1.0" }
+uniffi-testing-core = { path = "crates/lib/core", version = "0.1.0" }
+uniffi-testing-complex = { path = "crates/lib/complex", version = "0.1.0" }
+uniffi-testing-polynomials = { path = "crates/lib/polynomials", version = "0.1.0" }
+uniffi-testing-linear-algebra = { path = "crates/lib/linear-algebra", version = "0.1.0" }
+uniffi-testing-trig = { path = "crates/lib/trig", version = "0.1.0" }
+uniffi-testing-sequences = { path = "crates/lib/sequences", version = "0.1.0" }
 uniffi-testing-core-ffi = { path = "crates/ffi/core", version = "0.1.0" }
 uniffi-testing-complex-ffi = { path = "crates/ffi/complex", version = "0.1.0" }
 uniffi-testing-polynomials-ffi = { path = "crates/ffi/polynomials", version = "0.1.0" }

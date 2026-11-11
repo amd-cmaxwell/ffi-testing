@@ -43,10 +43,8 @@ compute_ffi_target() {
 
 changed=()
 
-for lib_toml in "$CRATES_DIR"/*/Cargo.toml; do
+for lib_toml in "$CRATES_DIR"/lib/*/Cargo.toml; do
   crate_dir="$(basename "$(dirname "$lib_toml")")"
-
-  [ "$crate_dir" = "ffi" ] && continue
 
   ffi_toml="$FFI_DIR/$crate_dir/Cargo.toml"
   [ -f "$ffi_toml" ] || continue

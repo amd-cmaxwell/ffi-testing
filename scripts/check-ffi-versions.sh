@@ -23,7 +23,7 @@ fi
 for ffi_toml in "${tomls[@]}"; do
   [ -f "$ffi_toml" ] || continue
   crate_dir=$(basename "$(dirname "$ffi_toml")")
-  lib_toml="crates/${crate_dir}/Cargo.toml"
+  lib_toml="crates/lib/${crate_dir}/Cargo.toml"
   if [ ! -f "$lib_toml" ]; then
     echo "::notice::Skipping crates/ffi/${crate_dir} — no corresponding lib crate"
     skipped=$((skipped + 1))
@@ -36,10 +36,10 @@ for ffi_toml in "${tomls[@]}"; do
   if [ "$ffi_major" -lt "$lib_major" ] ||
      { [ "$ffi_major" -eq "$lib_major" ] && [ "$ffi_minor" -lt "$lib_minor" ]; } ||
      { [ "$ffi_major" -eq "$lib_major" ] && [ "$ffi_minor" -eq "$lib_minor" ] && [ "$ffi_patch" -lt "$lib_patch" ]; }; then
-    echo "::error file=${ffi_toml}::crates/ffi/${crate_dir} v${ffi_ver} is behind crates/${crate_dir} v${lib_ver} — FFI version must be >= lib version"
+    echo "::error file=${ffi_toml}::crates/ffi/${crate_dir} v${ffi_ver} is behind crates/lib/${crate_dir} v${lib_ver} — FFI version must be >= lib version"
     failed=true
   else
-    echo "  crates/ffi/${crate_dir} v${ffi_ver} >= crates/${crate_dir} v${lib_ver}"
+    echo "  crates/ffi/${crate_dir} v${ffi_ver} >= crates/lib/${crate_dir} v${lib_ver}"
   fi
   checked=$((checked + 1))
 done

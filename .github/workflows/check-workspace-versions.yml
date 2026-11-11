@@ -9,7 +9,7 @@ on:
         default: ""
         description: >
           Space-separated list of FFI crate names (underscore-separated, e.g. "core trig").
-          If empty, all crates under crates/ and crates/ffi/ are checked.
+          If empty, all crates under crates/lib/ and crates/ffi/ are checked.
 
 jobs:
   check-workspace-versions:

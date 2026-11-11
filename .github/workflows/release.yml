@@ -130,14 +130,15 @@ jobs:
           crate_json="{"
           first=true
 
-          for toml in crates/*/Cargo.toml; do
+          for toml in crates/lib/*/Cargo.toml; do
             [ -f "$toml" ] || continue
             crate_path=$(dirname "$toml")
             crate_dir=$(basename "$crate_path")
 
             in_filter "$crate_dir" "${filter_crates[@]}" || continue
 
-            prev_tag=$(latest_tag_for "${crate_path}")
+            tag_path="crates/${crate_dir}"
+            prev_tag=$(latest_tag_for "${tag_path}")
             cur_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             prev_ver=$(version_at_tag "$prev_tag" "$toml")
 
@@ -145,7 +146,7 @@ jobs:
               echo "::notice::Library crate changed: ${crate_path} ${prev_ver:-<new>} -> ${cur_ver} (prev tag: ${prev_tag:-none})"
               changed_libs+=("$crate_dir")
               $first || crate_json+=","
-              crate_json+="\"${crate_path}\":\"${cur_ver}\""
+              crate_json+="\"${tag_path}\":\"${cur_ver}\""
               first=false
             fi
           done
@@ -170,7 +171,7 @@ jobs:
               # No previous FFI tag means this is the first time seeing this crate;
               # only treat it as changed if the corresponding lib crate also changed
               # (i.e. version was set during initial release, not an independent FFI change)
-              if [ -z "$prev_tag" ] && [ -f "crates/${crate_dir}/Cargo.toml" ]; then
+              if [ -z "$prev_tag" ] && [ -f "crates/lib/${crate_dir}/Cargo.toml" ]; then
                 lib_in_changed=false
                 for lib in "${changed_libs[@]}"; do
                   if [ "$lib" = "$crate_dir" ]; then lib_in_changed=true; break; fi

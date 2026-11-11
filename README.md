@@ -24,12 +24,13 @@ A Rust workspace with six domain crates and a per-crate FFI layer that exposes f
 
 ```
 crates/
-  core/              Shared error types and basic arithmetic
-  complex/           Complex number operations
-  polynomials/       Polynomial evaluation, roots, derivatives
-  linear-algebra/    Matrix operations, solvers, vector math
-  trig/              Trigonometry, geometry, distance functions
-  sequences/         Sequences, combinatorics, number theory
+  lib/
+    core/            Shared error types and basic arithmetic
+    complex/         Complex number operations
+    polynomials/     Polynomial evaluation, roots, derivatives
+    linear-algebra/  Matrix operations, solvers, vector math
+    trig/            Trigonometry, geometry, distance functions
+    sequences/       Sequences, combinatorics, number theory
   ffi/
     core/            FFI wrapper for core
     complex/         FFI wrapper for complex

@@ -38,8 +38,8 @@ missing_ffi_src=()
 for file in $changed_files; do
   case "$file" in
     crates/ffi/*) continue ;;
-    crates/*/src/*)
-      crate_name=$(echo "$file" | sed 's|crates/\([^/]*\)/.*|\1|')
+    crates/lib/*/src/*)
+      crate_name=$(echo "$file" | sed 's|crates/lib/\([^/]*\)/.*|\1|')
       ffi_dir="crates/ffi/$crate_name"
       [ -d "$ffi_dir" ] || continue
 
@@ -56,10 +56,9 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 
 # For lib crates with a minor or major version bump, require .rs changes in FFI src
-for lib_toml in crates/*/Cargo.toml; do
+for lib_toml in crates/lib/*/Cargo.toml; do
   [ -f "$lib_toml" ] || continue
   crate_name=$(basename "$(dirname "$lib_toml")")
-  [ "$crate_name" = "ffi" ] && continue
   [ -d "crates/ffi/$crate_name" ] || continue
 
   lib_tag=$(latest_tag_for "crates/${crate_name}")
@@ -82,7 +81,7 @@ failed=false
 if [ ${#missing[@]} -gt 0 ]; then
   echo "::warning::Library crates changed without corresponding FFI crate updates:"
   for name in "${missing[@]}"; do
-    echo "  - crates/$name/src/ changed but crates/ffi/$name/ was not modified"
+    echo "  - crates/lib/$name/src/ changed but crates/ffi/$name/ was not modified"
   done
   failed=true
 fi

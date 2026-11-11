@@ -5,7 +5,7 @@
 
 ## Context
 
-Each Rust library crate under `crates/<name>/` has a corresponding FFI crate under `crates/ffi/<name>/`. The FFI crates are thin wrappers that use UniFFI to expose the library's API through a C ABI, which `uniffi-bindgen` tools then use to generate language bindings (Python, Go, JavaScript).
+Each Rust library crate under `crates/lib/<name>/` has a corresponding FFI crate under `crates/ffi/<name>/`. The FFI crates are thin wrappers that use UniFFI to expose the library's API through a C ABI, which `uniffi-bindgen` tools then use to generate language bindings (Python, Go, JavaScript).
 
 The question arose whether this 1-to-1 separation introduces too much overhead, and whether the FFI code should live directly inside the library crates instead.
 
@@ -47,7 +47,7 @@ Instead of one FFI crate per library crate, combine them into a single `uniffi-t
 
 ## Testing strategy
 
-Correctness testing belongs in the library crates (`crates/<name>/`). FFI crates should **not** duplicate those tests.
+Correctness testing belongs in the library crates (`crates/lib/<name>/`). FFI crates should **not** duplicate those tests.
 
 FFI crate tests exist only to verify the **type conversion boundary** — the `From` impls that translate between library types and FFI-compatible types. If an FFI crate is a pure passthrough (every exported function directly delegates to the library with no type conversion), it needs no tests; successful compilation already proves correctness.
 
@@ -58,7 +58,7 @@ An FFI crate should have tests when it:
 
 Tests should verify roundtrip fidelity (`FFI type → library type → FFI type` produces the original values) and that error variants map correctly. They should not re-test the underlying math or logic.
 
-A CI check (`check-ffi-coverage` job) warns on PRs that modify `crates/<name>/src/` without touching `crates/ffi/<name>/`, nudging developers to review whether the FFI layer needs updating.
+A CI check (`check-ffi-coverage` job) warns on PRs that modify `crates/lib/<name>/src/` without touching `crates/ffi/<name>/`, nudging developers to review whether the FFI layer needs updating.
 
 ## Consequences
 

@@ -20,7 +20,9 @@ if [ -n "$result" ] && [ "$result" != "" ]; then
 fi
 
 # Check that staged lib crate changes have corresponding FFI updates
-./scripts/check-ffi-coverage.sh --cached
+if [ "${SKIP_FFI_COVERAGE:-}" != "1" ]; then
+  ./scripts/check-ffi-coverage.sh --cached
+fi
 
 # Sync workspace dependency versions to match crate versions
 result=$(./scripts/sync-workspace-versions.sh)

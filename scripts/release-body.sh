@@ -20,8 +20,8 @@ case "$tag" in
   crates/ffi/*)
     is_ffi=true
     lib_crate="${tag#crates/ffi/}" lib_crate="${lib_crate%%/*}"
-    if [ -f "crates/${lib_crate}/Cargo.toml" ]; then
-      lib_ver=$(grep '^version' "crates/${lib_crate}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+    if [ -f "crates/lib/${lib_crate}/Cargo.toml" ]; then
+      lib_ver=$(grep '^version' "crates/lib/${lib_crate}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
       lib_tag="crates/${lib_crate}/v${lib_ver}"
       lib_release_link="[${REPO_NAME:-}-${lib_crate} v${lib_ver}](${repo_url}/releases/tag/${lib_tag})"
       echo "> **FFI-only release** — this updates the foreign function interface bindings for \`${lib_crate}\`, not the core Rust library. The underlying lib crate release is ${lib_release_link}."
@@ -70,7 +70,7 @@ cat <<'HEADER'
 | :--- | :--- | :--- | :--- | :--- |
 HEADER
 
-rust_link="[source](${repo_url}/tree/${tag}/crates/${crate_dir})"
+rust_link="[source](${repo_url}/tree/${tag}/crates/lib/${crate_dir})"
 py_link="[source](${repo_url}/tree/${ffi_tag}/bindings/python/${py_pkg})"
 go_link="[source](${repo_url}/tree/${go_tag}/bindings/go/${go_pkg})"
 js_link="[source](${repo_url}/tree/${ffi_tag}/bindings/js/${js_pkg})"

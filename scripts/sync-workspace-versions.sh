@@ -4,7 +4,7 @@ set -euo pipefail
 # Usage: sync-workspace-versions.sh [ffi_lib1 ffi_lib2 ...]
 # If arguments are given, syncs those FFI crates and their corresponding lib crates.
 # FFI lib names use underscores (e.g. "core trig linear_algebra").
-# If no arguments are given, all crates under crates/ and crates/ffi/ are synced.
+# If no arguments are given, all crates under crates/lib/ and crates/ffi/ are synced.
 # Bumps workspace dependency versions in the root Cargo.toml to match each
 # crate's own [package].version.
 
@@ -12,11 +12,11 @@ if [ $# -gt 0 ]; then
   tomls=()
   for mod in "$@"; do
     crate_dir=$(echo "$mod" | tr '_' '-')
-    tomls+=("crates/${crate_dir}/Cargo.toml")
+    tomls+=("crates/lib/${crate_dir}/Cargo.toml")
     tomls+=("crates/ffi/${crate_dir}/Cargo.toml")
   done
 else
-  tomls=(crates/*/Cargo.toml crates/ffi/*/Cargo.toml)
+  tomls=(crates/lib/*/Cargo.toml crates/ffi/*/Cargo.toml)
 fi
 
 updated=false
