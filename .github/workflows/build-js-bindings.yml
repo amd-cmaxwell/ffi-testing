@@ -35,6 +35,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  LOG_LEVEL: ${{ runner.debug == '1' && '2' || '1' }}
 
 jobs:
   build-js-bindings:
