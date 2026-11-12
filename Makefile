@@ -203,49 +203,60 @@ setup:
 # ── Core build targets ───────────────────────────────────────────────────────
 
 build:
-	cargo build --release
+	$(call _log_debug,cargo build --release)
+	@cargo build --release
 
 test:
-	cargo test --workspace
+	$(call _log_debug,cargo test --workspace)
+	@cargo test --workspace
 
 # ── Dependency bootstrapping ─────────────────────────────────────────────────
 # These targets are no-ops when the required tools are already installed.
 
 # Ensures maturin is available (installs via pipx → pip if needed)
 python-dependencies:
-	@command -v maturin >/dev/null 2>&1 || { \
+	@$(_shell_log_helpers) \
+	command -v maturin >/dev/null 2>&1 || { \
 		echo "  maturin not found, installing via pipx"; \
 		command -v pipx >/dev/null 2>&1 || { \
 			echo "  pipx not found, installing via pip"; \
 			if command -v pip >/dev/null 2>&1; then \
+				log_debug "pip install --user pipx"; \
 				pip install --user pipx; \
 			elif python3 -m pip --version >/dev/null 2>&1; then \
+				log_debug "python3 -m pip install --user pipx"; \
 				python3 -m pip install --user pipx; \
 			else \
 				echo "  pip not found, installing"; \
 				curl -sSL https://bootstrap.pypa.io/get-pip.py | python3; \
+				log_debug "python3 -m pip install --user pipx"; \
 				python3 -m pip install --user pipx; \
 			fi; \
 		}; \
+		log_debug "pipx install maturin"; \
 		pipx install maturin; \
 	}
 
 # Ensures Node.js is available (installs via nvm if needed)
 install-node:
-	@command -v node >/dev/null 2>&1 || { \
+	@$(_shell_log_helpers) \
+	command -v node >/dev/null 2>&1 || { \
 		echo "  node not found, installing via nvm"; \
 		export NVM_DIR="$${HOME}/.nvm"; \
 		if [ ! -s "$$NVM_DIR/nvm.sh" ]; then \
 			echo "  nvm not found, installing"; \
 			curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash; \
 		fi; \
+		log_debug ". \$$NVM_DIR/nvm.sh && nvm install 20"; \
 		. "$$NVM_DIR/nvm.sh" && nvm install 20; \
 	}
 
 # Ensures pnpm is available (installs via corepack if needed)
 js-dependencies: install-node
-	@command -v pnpm >/dev/null 2>&1 || { \
+	@$(_shell_log_helpers) \
+	command -v pnpm >/dev/null 2>&1 || { \
 		echo "  pnpm not found, installing via corepack"; \
+		log_debug "corepack enable && corepack prepare pnpm@latest --activate"; \
 		corepack enable && corepack prepare pnpm@latest --activate; \
 	}
 
@@ -258,6 +269,7 @@ build-tools-py:
 		log_debug "uniffi-bindgen already installed at $(UNIFFI_BINDGEN)"; \
 	else \
 		log_info "installing uniffi-bindgen into $(TOOLS_DIR)/"; \
+		log_debug "cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features py-ffi --bin uniffi-bindgen"; \
 		cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features py-ffi --bin uniffi-bindgen; \
 	fi
 
@@ -267,6 +279,7 @@ build-tools-go:
 		log_debug "uniffi-bindgen-go already installed at $(UNIFFI_BINDGEN_GO)"; \
 	else \
 		log_info "installing uniffi-bindgen-go into $(TOOLS_DIR)/"; \
+		log_debug "cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features go-ffi --bin uniffi-bindgen-go"; \
 		cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features go-ffi --bin uniffi-bindgen-go; \
 	fi
 
@@ -276,6 +289,7 @@ build-tools-wasm:
 		log_debug "uniffi-bindgen-react-native already installed at $(UNIFFI_BINDGEN_RN)"; \
 	else \
 		log_info "installing uniffi-bindgen-react-native into $(TOOLS_DIR)/"; \
+		log_debug "cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features wasm-ffi --bin uniffi-bindgen-react-native"; \
 		cargo install --path crates/ffi/tools --root $(TOOLS_DIR) --features wasm-ffi --bin uniffi-bindgen-react-native; \
 	fi
 
@@ -315,6 +329,7 @@ generate-python: _check-repo-owner python-dependencies build-tools-py
 			sed "s|MOD_NAME|$$mod_name|g" $(CURDIR)/templates/python/init_external.py > $$proj_dir/$$mod_name/__init__.py; \
 		fi; \
 		log_info "building python bindings for $$ffi_lib"; \
+		log_debug "cd $$proj_dir && PATH=$(TOOLS_DIR)/bin:\$$PATH maturin build --release --out $(PY_WHEELS_DIR)"; \
 		( cd $$proj_dir && PATH=$(TOOLS_DIR)/bin:$$PATH maturin build --release --out $(PY_WHEELS_DIR) ); \
 	done
 	$(call _log_info,python wheels written to $(PY_WHEELS_DIR)/)
@@ -324,7 +339,7 @@ install-python: generate-python
 	@$(_shell_log_helpers) \
 	for whl in $(PY_WHEELS_DIR)/*.whl; do \
 		log_info "installing $$(basename $$whl)"; \
-		log_debug "wheel path: $$whl"; \
+		log_debug "pip install --force-reinstall $$whl"; \
 		pip install --force-reinstall $$whl; \
 	done
 	$(call _log_info,all python bindings installed)
@@ -374,6 +389,7 @@ generate-go: _check-repo-owner build build-tools-go stamp-uniffi-config
 		cp target/release/$${lib_static} $(GO_BINDINGS_DIR)/$$pkg/lib/$(CGO_OS)_$(CGO_ARCH)/; \
 		if [ ! -f $(GO_BINDINGS_DIR)/$$pkg/go.mod ]; then \
 			log_info "initializing go.mod for $$pkg ($(GO_MODULE_BASE)/$$pkg)"; \
+			log_debug "cd $(GO_BINDINGS_DIR)/$$pkg && go mod init $(GO_MODULE_BASE)/$$pkg"; \
 			( cd $(GO_BINDINGS_DIR)/$$pkg && go mod init $(GO_MODULE_BASE)/$$pkg ); \
 		fi; \
 		log_debug "writing cgo_$(CGO_OS)_$(CGO_ARCH).go from template"; \
@@ -393,6 +409,7 @@ install-go: generate-go
 	$(call _log_debug,GO_BINDINGS_DIR = $(GO_BINDINGS_DIR))
 	@$(_shell_log_helpers) \
 	cd $(GO_BINDINGS_DIR) && \
+		log_debug "go work init"; \
 		go work init && \
 		for d in */go.mod; do \
 			mod_dir=$$(dirname $$d); \
@@ -433,6 +450,7 @@ generate-wasm-ts: _check-repo-owner build-tools-wasm
 		log_debug "output dir:  $$pkg_dir"; \
 		mkdir -p $$pkg_dir/src; \
 		log_info "building wasm for $$pkg"; \
+		log_debug "RUSTFLAGS=\"-C link-arg=--export-table -C link-arg=--growable-table\" cargo build --release --target wasm32-unknown-unknown -p $(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX) --features wasm"; \
 		RUSTFLAGS="-C link-arg=--export-table -C link-arg=--growable-table" \
 		cargo build --release --target wasm32-unknown-unknown \
 			-p $(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX) --features wasm; \
@@ -472,11 +490,12 @@ fix-wasm-ts-imports:
 # Compiles generated TypeScript sources
 compile-wasm-ts: js-dependencies generate-wasm-ts
 	$(call _log_info,installing JS workspace dependencies)
+	$(call _log_debug,cd $(JS_BINDINGS_DIR) && pnpm install)
 	@( cd $(JS_BINDINGS_DIR) && pnpm install )
 	$(call _log_info,compiling typescript)
 	@$(_shell_log_helpers) \
 	for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
-		log_debug "tsc in $$pkg_dir"; \
+		log_debug "cd $$pkg_dir && pnpm exec tsc"; \
 		( cd "$$pkg_dir" && pnpm exec tsc ); \
 	done
 	$(call _log_info,typescript compiled at $(JS_BINDINGS_DIR)/)
@@ -488,7 +507,7 @@ generate-js: compile-wasm-ts
 	@$(_shell_log_helpers) \
 	for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		log_info "packing $$(basename $$pkg_dir)"; \
-		log_debug "pack destination: $(NPM_TARBALLS_DIR)"; \
+		log_debug "cd $$pkg_dir && npm pack --pack-destination $(NPM_TARBALLS_DIR)"; \
 		( cd "$$pkg_dir" && npm pack --pack-destination $(NPM_TARBALLS_DIR) ); \
 	done
 	$(call _log_info,npm tarballs written to $(NPM_TARBALLS_DIR)/)
@@ -500,14 +519,14 @@ install-js: generate-js
 	if [ -n "$(JS_PROJECT_DIR)" ]; then \
 		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
 			log_info "installing $$(basename $$tgz) into $(JS_PROJECT_DIR)"; \
-			log_debug "tarball path: $$tgz"; \
+			log_debug "cd $(JS_PROJECT_DIR) && npm install $$tgz"; \
 			( cd $(JS_PROJECT_DIR) && npm install $$tgz ); \
 		done; \
 		log_info "all js packages installed into $(JS_PROJECT_DIR)/"; \
 	else \
 		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
 			log_info "installing $$(basename $$tgz) globally"; \
-			log_debug "tarball path: $$tgz"; \
+			log_debug "npm install -g $$tgz"; \
 			npm install -g $$tgz; \
 		done; \
 		log_info "all js packages installed globally"; \
@@ -521,13 +540,15 @@ generate-all: generate-python generate-go generate-js
 
 test-python: install-python
 	$(call _log_info,running python smoke test)
-	python examples/py-demo
+	$(call _log_debug,python examples/py-demo)
+	@python examples/py-demo
 
 test-go: install-go
 	@$(_shell_log_helpers) \
 	for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 		[ -f "$$pkg_dir/go.mod" ] || continue; \
 		log_info "building $$(basename $$pkg_dir)"; \
+		log_debug "cd $$pkg_dir && go build ./..."; \
 		( cd "$$pkg_dir" && go build ./... ); \
 	done
 	$(call _log_info,running go smoke test)
@@ -537,9 +558,10 @@ test-go: install-go
 		for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 			[ -f "$$pkg_dir/go.mod" ] || continue; \
 			mod_path=$$(head -1 "$$pkg_dir/go.mod" | awk '{print $$2}'); \
-			log_debug "require $$mod_path → $$(cd "$$pkg_dir" && pwd)"; \
+			log_debug "go mod edit -require=$$mod_path@v0.0.0 -replace=$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
 			go mod edit -require="$$mod_path@v0.0.0" -replace="$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
 		done && \
+		log_debug "go run main.go"; \
 		go run main.go; \
 		status=$$?; \
 		mv go.mod.bak go.mod; \
@@ -551,7 +573,8 @@ test-js:
 	@cp $(CURDIR)/examples/js-demo/package.template.json $(CURDIR)/examples/js-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
 	$(call _log_info,running js smoke test)
-	node --test examples/js-demo/main.mjs
+	$(call _log_debug,node --test examples/js-demo/main.mjs)
+	@node --test examples/js-demo/main.mjs
 
 
 # Builds the browser-based web-demo with Vite to verify wasm packages work in a frontend context
@@ -560,8 +583,10 @@ test-web:
 	@cp $(CURDIR)/examples/web-demo/package.template.json $(CURDIR)/examples/web-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/web-demo
 	$(call _log_info,installing web-demo dev dependencies)
+	$(call _log_debug,cd $(CURDIR)/examples/web-demo && npm install)
 	@cd $(CURDIR)/examples/web-demo && npm install
 	$(call _log_info,building web-demo (vite build))
+	$(call _log_debug,cd $(CURDIR)/examples/web-demo && npx vite build)
 	@cd $(CURDIR)/examples/web-demo && npx vite build
 	$(call _log_info,web-demo build succeeded — run 'cd examples/web-demo && npx vite' to open in browser)
 
@@ -582,7 +607,8 @@ test-all: test-python test-go test-js test-web
 # purge            : everything including local tools
 
 clean:
-	cargo clean
+	$(call _log_debug,cargo clean)
+	@cargo clean
 
 clean-tools:
 	rm -rf $(TOOLS_DIR)
