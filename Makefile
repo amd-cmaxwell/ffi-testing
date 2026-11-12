@@ -38,8 +38,8 @@ endef
 #   LOG_LEVEL=2 make ...    # debug: resolved variables, paths, commands
 #
 # Most variables are resolved dynamically from the git remote and directory
-# name. Override REPO_SLUG, REPO_OWNER, REPO_NAME, PKG_SUFFIX, GIT_REPO,
-# or NPM_SCOPE as needed.
+# name. Override REPO_SLUG, REPO_OWNER, REPO_NAME, GIT_REPO, or NPM_SCOPE
+# as needed. Package names are derived from crate Cargo.toml names.
 # ──────────────────────────────────────────────────────────────────────────────
 
 .PHONY: config setup build test \
@@ -61,11 +61,6 @@ endef
 # REPO_SLUG    : owner/name pair; derived from the git remote URL
 # REPO_OWNER   : GitHub username or org; derived from REPO_SLUG
 # REPO_NAME    : kebab-case project name; derived from REPO_SLUG, then dir name
-# PKG_PREFIX   : kebab-case prefix for generated packages; user-settable,
-#                defaults to REPO_NAME when REPO_NAME is explicitly provided
-# PKG_SUFFIX   : appended to every generated package name (e.g. "-ffi")
-# *_US variants: underscore-normalized forms for contexts where kebab-case is
-#                invalid (Rust crate names, Go package dirs, WASM filenames)
 _git_remote_url  = $(shell git remote get-url $(1) 2>/dev/null)
 _strip_git_url   = $(patsubst %.git,%,$(patsubst git@%,%,$(patsubst https://%,%,$(patsubst http://%,%,$(1)))))
 _normalize_ssh   = $(subst :,/,$(_strip_git_url))
@@ -76,26 +71,7 @@ _REMOTE_PARTS   := $(subst /, ,$(_GIT_REMOTE))
 REPO_SLUG      ?= $(if $(word 2,$(_REMOTE_PARTS)),$(word 2,$(_REMOTE_PARTS))/$(word 3,$(_REMOTE_PARTS)),)
 REPO_OWNER     ?= $(firstword $(subst /, ,$(REPO_SLUG)))
 REPO_NAME      ?= $(or $(word 2,$(subst /, ,$(REPO_SLUG))),$(notdir $(CURDIR)))
-REPO_NAME_US   := $(subst -,_,$(REPO_NAME))
 REPO_SLUG      := $(REPO_OWNER)/$(REPO_NAME)
-PKG_SUFFIX     ?=
-PKG_SUFFIX_US  := $(subst -,_,$(PKG_SUFFIX))
-# Helper: normalize a value to end with exactly one hyphen (empty → empty)
-_strip_hyphens = $(patsubst %-,%,$(patsubst %-,%,$(patsubst %-,%,$(1))))
-_ensure_hyphen = $(if $(strip $(1)),$(call _strip_hyphens,$(strip $(1)))-,)
-
-# True (non-empty) when the user explicitly set a variable via the command line
-# or environment, as opposed to it being derived from the Makefile defaults.
-_user_provided = $(filter command line environment,$(origin $(1)))
-
-PKG_PREFIX     ?=
-ifeq ($(strip $(PKG_PREFIX)),)
-  ifneq ($(call _user_provided,REPO_NAME),)
-    PKG_PREFIX := $(REPO_NAME)
-  endif
-endif
-PKG_PREFIX     := $(call _ensure_hyphen,$(PKG_PREFIX))
-PKG_PREFIX_US  := $(subst -,_,$(PKG_PREFIX))
 
 _check-repo-owner:
 	@test -n "$(REPO_OWNER)" || { echo "error: REPO_OWNER could not be resolved — configure a git remote, or set REPO_OWNER explicitly"; exit 1; }
@@ -144,16 +120,10 @@ CGO_LDFLAGS_darwin := -lm -lpthread -framework Security
 CGO_LDFLAGS_EXTRA  := $(CGO_LDFLAGS_$(CGO_OS))
 
 # ── npm / JS configuration ──────────────────────────────────────────────────
-# NPM_SCOPE      : npm org scope (defaults to @REPO_OWNER; override for orgs)
-# NPM_PKG_PREFIX : kebab-case prefix within the scope; user-settable,
-#                  defaults to PKG_PREFIX, then REPO_NAME
-NPM_SCOPE       ?= @$(REPO_OWNER)
-NPM_PKG_PREFIX  ?=
-ifeq ($(strip $(NPM_PKG_PREFIX)),)
-  NPM_PKG_PREFIX := $(or $(strip $(PKG_PREFIX)),$(REPO_NAME))
-endif
-NPM_PKG_PREFIX  := $(call _ensure_hyphen,$(NPM_PKG_PREFIX))
-NPM_ROOT_PKG_NAME := $(patsubst %-,%,$(NPM_PKG_PREFIX))
+# NPM_SCOPE          : npm org scope (defaults to @REPO_OWNER; override for orgs)
+# NPM_ROOT_PKG_NAME  : name for the private pnpm workspace root package
+NPM_SCOPE          ?= @$(REPO_OWNER)
+NPM_ROOT_PKG_NAME  ?= $(REPO_NAME)
 
 # ── Tooling paths ────────────────────────────────────────────────────────────
 # Local installs of UniFFI bindgen tools, kept in .tools/ to avoid polluting
@@ -178,18 +148,12 @@ config:
 	@echo "  JS_BINDINGS_DIR   = $(JS_BINDINGS_DIR)"
 	@echo "  LIB_SUFFIX        = $(LIB_SUFFIX)"
 	@echo "  LOG_LEVEL         = $(_LOG_LEVEL)"
-	@echo "  NPM_PKG_PREFIX    = $(NPM_PKG_PREFIX)"
 	@echo "  NPM_ROOT_PKG_NAME = $(NPM_ROOT_PKG_NAME)"
 	@echo "  NPM_SCOPE         = $(NPM_SCOPE)"
 	@echo "  NPM_TARBALLS_DIR  = $(NPM_TARBALLS_DIR)"
-	@echo "  PKG_PREFIX        = $(PKG_PREFIX)"
-	@echo "  PKG_PREFIX_US     = $(PKG_PREFIX_US)"
-	@echo "  PKG_SUFFIX        = $(PKG_SUFFIX)"
-	@echo "  PKG_SUFFIX_US     = $(PKG_SUFFIX_US)"
 	@echo "  PY_BINDINGS_DIR   = $(PY_BINDINGS_DIR)"
 	@echo "  PY_WHEELS_DIR     = $(PY_WHEELS_DIR)"
 	@echo "  REPO_NAME         = $(REPO_NAME)"
-	@echo "  REPO_NAME_US      = $(REPO_NAME_US)"
 	@echo "  REPO_OWNER        = $(REPO_OWNER)"
 	@echo "  REPO_SLUG         = $(REPO_SLUG)"
 	@echo "  TOOLS_DIR         = $(TOOLS_DIR)"
@@ -295,7 +259,7 @@ build-tools-wasm:
 
 # ── Python bindings ─────────────────────────────────────────────────────────
 # Generates a maturin-based Python project per FFI crate, then builds wheels
-# into $(PY_WHEELS_DIR).  Package name pattern: $(PKG_PREFIX)<crate>$(PKG_SUFFIX)
+# into $(PY_WHEELS_DIR).  Package names are derived from crate Cargo.toml names.
 
 generate-python: _check-repo-owner python-dependencies build-tools-py
 	$(call _log_debug,PY_WHEELS_DIR = $(PY_WHEELS_DIR))
@@ -304,7 +268,9 @@ generate-python: _check-repo-owner python-dependencies build-tools-py
 	@$(_shell_log_helpers) \
 	for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg_name=$(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX); \
+		crate_name_hy=$$($(CURDIR)/scripts/ffi-crate-name.sh $$crate_dir); \
+		crate_name_us=$$($(CURDIR)/scripts/ffi-crate-name.sh --us $$crate_dir); \
+		pkg_name=$$crate_name_hy; \
 		manifest_path=../../../crates/ffi/$$crate_dir/Cargo.toml; \
 		proj_dir=$(PY_BINDINGS_DIR)/$$pkg_name; \
 		log_debug "── $$ffi_lib ──"; \
@@ -320,7 +286,7 @@ generate-python: _check-repo-owner python-dependencies build-tools-py
 				-e "s|MANIFEST_PATH|$$manifest_path|" \
 				$(CURDIR)/templates/python/pyproject.toml > $$proj_dir/pyproject.toml; \
 		fi; \
-		mod_name=$$(echo $(PKG_PREFIX_US)$${ffi_lib}$(PKG_SUFFIX_US)); \
+		mod_name=$$crate_name_us; \
 		log_debug "mod name:      $$mod_name"; \
 		if grep -q "$$mod_name" $(CURDIR)/uniffi.toml 2>/dev/null && \
 		   grep -A20 '\[bindings.python.external_packages\]' $(CURDIR)/uniffi.toml | grep -q "$$mod_name"; then \
@@ -347,7 +313,7 @@ install-python: generate-python
 # ── Go bindings ──────────────────────────────────────────────────────────────
 # Generates Go modules with UniFFI-generated source and platform-specific static
 # libs. Each module gets a go.mod and a CGO platform file from templates/.
-# Package dir pattern: $(PKG_PREFIX_US)<lib>$(PKG_SUFFIX_US)
+# Package dir names are derived from crate Cargo.toml names (underscore form).
 
 # Stamps the go_mod path into all uniffi.toml files so generated Go code imports
 # from the correct module path.
@@ -369,7 +335,9 @@ generate-go: _check-repo-owner build build-tools-go stamp-uniffi-config
 	@mkdir -p $(GO_BINDINGS_DIR)
 	@$(_shell_log_helpers) \
 	for ffi_lib in $(FFI_LIBS); do \
-		pkg=$(PKG_PREFIX_US)$${ffi_lib}$(PKG_SUFFIX_US); \
+		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
+		crate_name_us=$$($(CURDIR)/scripts/ffi-crate-name.sh --us $$crate_dir); \
+		pkg=$$crate_name_us; \
 		lib=lib$${pkg}; \
 		lib_dynamic=$${lib}$(LIB_SUFFIX); \
 		lib_static=$${lib}.a; \
@@ -421,12 +389,11 @@ install-go: generate-go
 # ── WASM / TypeScript bindings ───────────────────────────────────────────────
 # Builds each FFI crate to wasm32-unknown-unknown, then runs uniffi-bindgen-
 # react-native to produce TypeScript sources + .wasm blobs.
-# npm package pattern: $(NPM_SCOPE)/$(NPM_PKG_PREFIX)<crate>$(PKG_SUFFIX)
+# npm package pattern: $(NPM_SCOPE)/<crate-name> (derived from Cargo.toml)
 
 generate-wasm-ts: _check-repo-owner build-tools-wasm
 	$(call _log_debug,JS_BINDINGS_DIR = $(JS_BINDINGS_DIR))
 	$(call _log_debug,NPM_SCOPE = $(NPM_SCOPE))
-	$(call _log_debug,NPM_PKG_PREFIX = $(NPM_PKG_PREFIX))
 	$(call _log_debug,NPM_ROOT_PKG_NAME = $(NPM_ROOT_PKG_NAME))
 	@mkdir -p $(JS_BINDINGS_DIR)
 	$(call _log_info,writing pnpm-workspace.yaml)
@@ -439,30 +406,33 @@ generate-wasm-ts: _check-repo-owner build-tools-wasm
 	@$(_shell_log_helpers) \
 	for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg=$(PKG_PREFIX_US)$${ffi_lib}$(PKG_SUFFIX_US); \
-		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX); \
+		crate_name_hy=$$($(CURDIR)/scripts/ffi-crate-name.sh $$crate_dir); \
+		crate_name_us=$$($(CURDIR)/scripts/ffi-crate-name.sh --us $$crate_dir); \
+		pkg=$$crate_name_us; \
+		npm_pkg=$(NPM_SCOPE)/$${crate_name_hy}; \
 		pkg_dir=$(JS_BINDINGS_DIR)/$${npm_pkg}; \
 		log_info ""; \
 		log_info "── $$ffi_lib ──"; \
 		log_debug "crate dir:   $$crate_dir"; \
+		log_debug "crate name:  $$crate_name_hy ($$crate_name_us)"; \
 		log_debug "wasm pkg:    $$pkg"; \
 		log_debug "npm pkg:     $$npm_pkg"; \
 		log_debug "output dir:  $$pkg_dir"; \
 		mkdir -p $$pkg_dir/src; \
-		log_info "building wasm for $$pkg"; \
-		log_debug "RUSTFLAGS=\"-C link-arg=--export-table -C link-arg=--growable-table\" cargo build --release --target wasm32-unknown-unknown -p $(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX) --features wasm"; \
+		log_info "building wasm for $$crate_name_hy"; \
+		log_debug "RUSTFLAGS=\"-C link-arg=--export-table -C link-arg=--growable-table\" cargo build --release --target wasm32-unknown-unknown -p $$crate_name_hy --features wasm"; \
 		RUSTFLAGS="-C link-arg=--export-table -C link-arg=--growable-table" \
 		cargo build --release --target wasm32-unknown-unknown \
-			-p $(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX) --features wasm; \
+			-p $$crate_name_hy --features wasm; \
 		log_info "generating wasm/ts bindings for $$ffi_lib"; \
-		log_debug "bindgen cmd: $(UNIFFI_BINDGEN_RN) generate wasm2 bindings --library target/wasm32-unknown-unknown/release/$$pkg.wasm --no-format --ts-dir $$pkg_dir/src"; \
+		log_debug "bindgen cmd: $(UNIFFI_BINDGEN_RN) generate wasm2 bindings --library target/wasm32-unknown-unknown/release/$$crate_name_us.wasm --no-format --ts-dir $$pkg_dir/src"; \
 		$(UNIFFI_BINDGEN_RN) \
 			generate wasm2 bindings \
-			--library target/wasm32-unknown-unknown/release/$${pkg}.wasm \
+			--library target/wasm32-unknown-unknown/release/$${crate_name_us}.wasm \
 			--no-format \
 			--ts-dir $$pkg_dir/src; \
-		log_debug "copying $$pkg.wasm → $$pkg_dir/src/"; \
-		cp target/wasm32-unknown-unknown/release/$${pkg}.wasm $$pkg_dir/src/; \
+		log_debug "copying $$crate_name_us.wasm → $$pkg_dir/src/"; \
+		cp target/wasm32-unknown-unknown/release/$${crate_name_us}.wasm $$pkg_dir/src/; \
 		crate_version=$$(grep '^version' $(CURDIR)/crates/ffi/$$crate_dir/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/'); \
 		log_info "stamping $$npm_pkg@$$crate_version"; \
 		sed -e "s|PKG_NAME|$$npm_pkg|" \
