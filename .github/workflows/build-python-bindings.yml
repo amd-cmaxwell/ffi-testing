@@ -9,17 +9,10 @@ on:
       repo-name:
         required: true
         type: string
-      pkg-suffix:
-        required: true
-        type: string
       upload-artifacts:
         required: false
         type: boolean
         default: false
-      pkg-prefix:
-        required: false
-        type: string
-        default: ''
       ffi-libs:
         required: false
         type: string
@@ -77,14 +70,12 @@ jobs:
 
       - name: Generate Python bindings
         run: |
-          echo "::notice::Inputs — REPO_OWNER=${{ inputs.repo-owner }} REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} FFI_LIBS=${{ inputs.ffi-libs }}"
+          echo "::notice::Inputs — REPO_OWNER=${{ inputs.repo-owner }} REPO_NAME=${{ inputs.repo-name }} FFI_LIBS=${{ inputs.ffi-libs }}"
           make generate-python
         shell: bash
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
-          PKG_PREFIX: ${{ inputs.pkg-prefix }}
-          PKG_SUFFIX: ${{ inputs.pkg-suffix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
 
       - name: List generated artifacts

@@ -9,9 +9,6 @@ on:
       repo-name:
         required: true
         type: string
-      pkg-suffix:
-        required: true
-        type: string
       upload-artifacts:
         required: false
         type: boolean
@@ -20,14 +17,6 @@ on:
         required: false
         type: string
         default: generate-js
-      pkg-prefix:
-        required: false
-        type: string
-        default: ''
-      npm-pkg-prefix:
-        required: false
-        type: string
-        default: ''
       ffi-libs:
         required: false
         type: string
@@ -74,15 +63,12 @@ jobs:
 
       - name: Build JS/TS/WASM bindings
         run: |
-          echo "::notice::Inputs — REPO_OWNER=${{ inputs.repo-owner }} REPO_NAME=${{ inputs.repo-name }} PKG_SUFFIX=${{ inputs.pkg-suffix }} FFI_LIBS=${{ inputs.ffi-libs }}"
+          echo "::notice::Inputs — REPO_OWNER=${{ inputs.repo-owner }} REPO_NAME=${{ inputs.repo-name }} FFI_LIBS=${{ inputs.ffi-libs }}"
           echo "::notice::Make target: ${{ inputs.make-target }}"
           make ${{ inputs.make-target }}
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
-          PKG_PREFIX: ${{ inputs.pkg-prefix }}
-          PKG_SUFFIX: ${{ inputs.pkg-suffix }}
-          NPM_PKG_PREFIX: ${{ inputs.npm-pkg-prefix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
 
       - name: List generated artifacts

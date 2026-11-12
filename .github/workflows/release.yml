@@ -19,10 +19,7 @@ env:
   CARGO_TERM_COLOR: always
   REPO_OWNER: ${{ vars.REPO_OWNER }}
   REPO_NAME: ${{ vars.REPO_NAME }}
-  PKG_PREFIX: ${{ vars.PKG_PREFIX }}
-  PKG_SUFFIX: ${{ vars.PKG_SUFFIX }}
   NPM_SCOPE: ${{ vars.NPM_SCOPE }}
-  NPM_PKG_PREFIX: ${{ vars.NPM_PKG_PREFIX }}
 
 jobs:
   ci-gate:
@@ -256,8 +253,6 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
-      pkg-prefix: ${{ vars.PKG_PREFIX }}
-      pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
@@ -271,8 +266,6 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
-      pkg-prefix: ${{ vars.PKG_PREFIX }}
-      pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
 
@@ -286,9 +279,6 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
-      pkg-prefix: ${{ vars.PKG_PREFIX }}
-      pkg-suffix: ${{ vars.PKG_SUFFIX }}
-      npm-pkg-prefix: ${{ vars.NPM_PKG_PREFIX }}
       upload-artifacts: true
       make-target: generate-js
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
@@ -309,32 +299,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
-          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
           npm_scope="${NPM_SCOPE:-@${REPO_OWNER}}"
           ffi_modules="${{ needs.detect-changes.outputs.ffi-libs }}"
 
-          # Normalize PKG_PREFIX: default to REPO_NAME, ensure trailing hyphen
-          pkg_prefix="${PKG_PREFIX:-${REPO_NAME}}"
-          if [ -n "$pkg_prefix" ]; then
-            pkg_prefix="$(printf '%s' "$pkg_prefix" | sed 's/-*$//')-"
-          fi
-
-          # Normalize NPM_PKG_PREFIX: default to PKG_PREFIX, then REPO_NAME
-          npm_pkg_prefix="${NPM_PKG_PREFIX:-${pkg_prefix:-${REPO_NAME}}}"
-          if [ -n "$npm_pkg_prefix" ]; then
-            npm_pkg_prefix="$(printf '%s' "$npm_pkg_prefix" | sed 's/-*$//')-"
-          fi
-
-          echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
-          echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
           echo "NPM_SCOPE=${npm_scope}" >> "$GITHUB_ENV"
-          echo "PKG_PREFIX=${pkg_prefix}" >> "$GITHUB_ENV"
-          echo "NPM_PKG_PREFIX=${npm_pkg_prefix}" >> "$GITHUB_ENV"
           echo "FFI_MODULES=${ffi_modules}" >> "$GITHUB_ENV"
-          echo "::notice::REPO_NAME_US=${repo_us} PKG_SUFFIX_US=${suffix_us} NPM_SCOPE=${npm_scope}"
-          echo "::notice::PKG_PREFIX=${pkg_prefix} NPM_PKG_PREFIX=${npm_pkg_prefix}"
-          echo "::notice::FFI_MODULES=${ffi_modules}"
+          echo "::notice::NPM_SCOPE=${npm_scope} FFI_MODULES=${ffi_modules}"
 
       - name: Download Go binding artifacts
         uses: actions/download-artifact@v4
@@ -426,7 +396,7 @@ jobs:
             git tag "${ffi_tag}"
 
             # bindings/go/{pkg}/vX.Y.Z for Go modules
-            pkg="${REPO_NAME_US}_${mod}${PKG_SUFFIX_US}"
+            pkg=$(./scripts/ffi-crate-name.sh --us "${crate_dir}")
             go_tag="bindings/go/${pkg}/v${version}"
             if git rev-parse "${go_tag}" >/dev/null 2>&1; then
               echo "::error::Tag ${go_tag} already exists"
@@ -467,16 +437,7 @@ jobs:
           BINDINGS_COMMIT: ${{ needs.publish-bindings.outputs.bindings-commit }}
         run: |
           set -euo pipefail
-          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
-          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
 
-          # Normalize PKG_PREFIX: default to REPO_NAME, ensure trailing hyphen
-          pkg_prefix="${PKG_PREFIX:-${REPO_NAME}}"
-          if [ -n "$pkg_prefix" ]; then
-            pkg_prefix="$(printf '%s' "$pkg_prefix" | sed 's/-*$//')-"
-          fi
-
-          echo "::notice::Artifact matching patterns — wheels: *\${repo_us}_\${crate_us}\${suffix_us}* | tarballs: *\${pkg_prefix}\${crate_dir}\${PKG_SUFFIX}*"
           echo "::notice::Available wheels:"
           ls -1 wheels/ 2>/dev/null || echo "::warning::wheels/ directory not found"
           echo "::notice::Available npm tarballs:"
@@ -494,26 +455,28 @@ jobs:
             git tag "${tag}"
             git push origin "${tag}"
 
-            crate_us=$(echo "$crate_dir" | tr '-' '_')
-            wheel_pattern="${repo_us}_${crate_us}${suffix_us}"
-            tarball_pattern="${pkg_prefix}${crate_dir}${PKG_SUFFIX}"
             assets=()
-            while IFS= read -r f; do
-              [ -n "$f" ] && assets+=("$f")
-            done < <(find wheels/ -name "*${wheel_pattern}*" -type f 2>/dev/null)
-            while IFS= read -r f; do
-              [ -n "$f" ] && assets+=("$f")
-            done < <(find npm-tarballs/ -name "*${tarball_pattern}*" -type f 2>/dev/null)
+            case "$crate_path" in
+              crates/ffi/*)
+                crate_name_us=$(./scripts/ffi-crate-name.sh --us "${crate_dir}")
+                crate_name_hy=$(./scripts/ffi-crate-name.sh "${crate_dir}")
+                while IFS= read -r f; do
+                  [ -n "$f" ] && assets+=("$f")
+                done < <(find wheels/ -name "*${crate_name_us}*" -type f 2>/dev/null)
+                while IFS= read -r f; do
+                  [ -n "$f" ] && assets+=("$f")
+                done < <(find npm-tarballs/ -name "*${crate_name_hy}*" -type f 2>/dev/null)
+                title="${crate_name_hy} v${cur_ver}"
+                ;;
+              *)
+                title="${crate_dir} v${cur_ver}"
+                ;;
+            esac
 
             if [ ${#assets[@]} -eq 0 ]; then
-              echo "::warning::No artifacts matched for ${crate_path} (wheel: *${wheel_pattern}*, tarball: *${tarball_pattern}*)"
+              echo "::warning::No artifacts matched for ${crate_path}"
             fi
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
-
-            case "$crate_path" in
-              crates/ffi/*) title="${pkg_prefix}${crate_dir}${PKG_SUFFIX} v${cur_ver}" ;;
-              *)            title="${pkg_prefix}${crate_dir} v${cur_ver}" ;;
-            esac
 
             echo "::group::Release ${tag}"
             echo "::notice::Title: ${title}"
@@ -585,15 +548,13 @@ jobs:
           PRE_EXISTING_TAGS: ${{ needs.detect-changes.outputs.pre-existing-tags }}
         run: |
           set -uo pipefail
-          repo_us=$(echo "$REPO_NAME" | tr '-' '_')
-          suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
           if [ -z "$FFI_LIBS" ]; then
             echo "::notice::No Go module tags to roll back"
             exit 0
           fi
           for mod in $FFI_LIBS; do
             crate_dir=$(echo "$mod" | tr '_' '-')
-            pkg="${repo_us}_${mod}${suffix_us}"
+            pkg=$(./scripts/ffi-crate-name.sh --us "${crate_dir}")
             version=$(grep '^version' "crates/ffi/${crate_dir}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
             tag="bindings/go/${pkg}/v${version}"
             if echo " $PRE_EXISTING_TAGS " | grep -qF " ${tag} "; then
