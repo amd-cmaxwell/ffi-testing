@@ -3,6 +3,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+. "$(dirname "$0")/log.sh"
+
 latest_tag_for() {
   git -C "$REPO_ROOT" tag --list "$1/v*" --sort=-v:refname | head -1
 }
@@ -55,17 +57,26 @@ if [ ${#missing[@]} -gt 0 ]; then
   mapfile -t missing < <(printf '%s\n' "${missing[@]}" | sort -u)
 fi
 
-# For lib crates with a minor or major version bump, require .rs changes in FFI src
+# For lib crates with a minor or major version bump, require .rs changes in FFI src.
+# In --cached mode, only check lib crates whose Cargo.toml is staged, and read
+# the staged version so unstaged working-tree changes don't trigger false positives.
 for lib_toml in crates/lib/*/Cargo.toml; do
   [ -f "$lib_toml" ] || continue
   crate_name=$(basename "$(dirname "$lib_toml")")
   [ -d "crates/ffi/$crate_name" ] || continue
 
+  if [ "${1:-}" = "--cached" ]; then
+    echo "$changed_files" | grep -q "^${lib_toml}$" || continue
+    cur_version=$(git show :"${lib_toml}" 2>/dev/null \
+      | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/')
+  else
+    cur_version=$(grep '^version' "$lib_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+  fi
+
   lib_tag=$(latest_tag_for "crates/${crate_name}")
   [ -z "$lib_tag" ] && continue
 
   prev_version=$(version_from_tag "$lib_tag")
-  cur_version=$(grep '^version' "$lib_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
   [ "$prev_version" = "$cur_version" ] && continue
 
   bump=$(detect_bump "$prev_version" "$cur_version")
@@ -79,7 +90,7 @@ done
 failed=false
 
 if [ ${#missing[@]} -gt 0 ]; then
-  echo "::warning::Library crates changed without corresponding FFI crate updates:"
+  log_warning "Library crates changed without corresponding FFI crate updates:"
   for name in "${missing[@]}"; do
     echo "  - crates/lib/$name/src/ changed but crates/ffi/$name/ was not modified"
   done
@@ -87,7 +98,7 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 
 if [ ${#missing_ffi_src[@]} -gt 0 ]; then
-  echo "::error::Library crates have minor/major version bumps without FFI source changes:"
+  log_error "Library crates have minor/major version bumps without FFI source changes:"
   for entry in "${missing_ffi_src[@]}"; do
     echo "  - $entry — expected .rs changes in crates/ffi/$(echo "$entry" | cut -d' ' -f1)/src/"
   done
