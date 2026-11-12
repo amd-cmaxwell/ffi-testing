@@ -1,5 +1,5 @@
 [package]
-name = "uniffi-testing-tools"
+name = "uniffi-math-demo-tools"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,5 +1,5 @@
 [package]
-name = "uniffi-testing-sequences"
+name = "uniffi-math-demo-sequences"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
@@ -7,4 +7,4 @@ repository.workspace = true
 description = "Sequence math operations"
 
 [dependencies]
-uniffi-testing-core.workspace = true
+uniffi-math-demo-core.workspace = true

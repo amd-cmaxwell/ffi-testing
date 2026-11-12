@@ -3,8 +3,8 @@ extern crate uniffi_runtime_wasm as _;
 
 uniffi::setup_scaffolding!();
 
-use uniffi_testing_linear_algebra as la;
-use uniffi_testing_types_ffi::{MathError, Point2};
+use uniffi_math_demo_linear_algebra as la;
+use uniffi_math_demo_types_ffi::{MathError, Point2};
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct Point3 {

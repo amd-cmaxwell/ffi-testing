@@ -3,8 +3,8 @@ extern crate uniffi_runtime_wasm as _;
 
 uniffi::setup_scaffolding!();
 
-use uniffi_testing_complex as cx;
-use uniffi_testing_types_ffi::MathError;
+use uniffi_math_demo_complex as cx;
+use uniffi_math_demo_types_ffi::MathError;
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct Complex {

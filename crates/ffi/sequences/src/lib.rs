@@ -3,8 +3,8 @@ extern crate uniffi_runtime_wasm as _;
 
 uniffi::setup_scaffolding!();
 
-use uniffi_testing_sequences as seq;
-use uniffi_testing_types_ffi::MathError;
+use uniffi_math_demo_sequences as seq;
+use uniffi_math_demo_types_ffi::MathError;
 
 #[uniffi::export]
 pub fn arithmetic_term(a1: f64, d: f64, n: u64) -> f64 {

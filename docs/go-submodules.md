@@ -2,17 +2,17 @@
 
 ## Context
 
-The Python bindings have `bindings/python/scripts/generate_modules.py` which reads the generated `uniffi_testing_ffi.py`, classifies exports by prefix/name into logical modules (core, complex, polynomials, etc.), and generates submodule files. The Go bindings originally had everything in a single flat package `uniffi_testing_ffi`. This document describes the analogous script that generates Go sub-packages with idiomatic naming (prefix-stripped).
+The Python bindings have `bindings/python/scripts/generate_modules.py` which reads the generated `uniffi_math_demo_ffi.py`, classifies exports by prefix/name into logical modules (core, complex, polynomials, etc.), and generates submodule files. The Go bindings originally had everything in a single flat package `uniffi_math_demo_ffi`. This document describes the analogous script that generates Go sub-packages with idiomatic naming (prefix-stripped).
 
 ## Approach
 
 `bindings/go/scripts/generate_modules.py` is a Python script that:
 
-1. **Parses** the generated `uniffi_testing_ffi.go` file using regex to extract exported functions (with full signatures) and exported domain types
+1. **Parses** the generated `uniffi_math_demo_ffi.go` file using regex to extract exported functions (with full signatures) and exported domain types
 2. **Classifies** each export into modules using the same grouping logic as the Python script (adapted for PascalCase)
 3. **Generates** Go sub-packages under `bindings/go/` — one directory per module, each containing a `.go` file with:
-   - Type aliases for domain types: `type Complex = uniffi_testing_ffi.Complex`
-   - Thin wrapper functions that delegate to the base package with prefix-stripped names: `func New(re, im float64) Complex { return uniffi_testing_ffi.ComplexNew(re, im) }`
+   - Type aliases for domain types: `type Complex = uniffi_math_demo_ffi.Complex`
+   - Thin wrapper functions that delegate to the base package with prefix-stripped names: `func New(re, im float64) Complex { return uniffi_math_demo_ffi.ComplexNew(re, im) }`
 
 ## Module Classification (PascalCase)
 
@@ -63,7 +63,7 @@ bindings/go/
 ### Running the script
 
 ```bash
-python3 bindings/go/scripts/generate_modules.py bindings/go/uniffi_testing_ffi/uniffi_testing_ffi.go
+python3 bindings/go/scripts/generate_modules.py bindings/go/uniffi_math_demo_ffi/uniffi_math_demo_ffi.go
 ```
 
 Or via the Makefile (runs automatically as part of `generate-go`):
@@ -86,4 +86,4 @@ fmt.Println(complexnums.Magnitude(z))
 det := linearalgebra.Determinant2x2(linearalgebra.Matrix2x2{M00: 2, M01: 3, M10: 1, M11: 4})
 ```
 
-The flat `uniffi_testing_ffi` package remains available for direct access to all functions without sub-package organization.
+The flat `uniffi_math_demo_ffi` package remains available for direct access to all functions without sub-package organization.

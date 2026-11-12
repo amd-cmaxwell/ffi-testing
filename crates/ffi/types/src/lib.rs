@@ -4,7 +4,7 @@ extern crate uniffi_runtime_wasm as _;
 uniffi::setup_scaffolding!();
 
 use std::fmt;
-use uniffi_testing_core as core;
+use uniffi_math_demo_core as core;
 
 #[derive(Debug, Clone, PartialEq, uniffi::Error)]
 pub enum MathError {

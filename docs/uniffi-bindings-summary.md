@@ -25,12 +25,12 @@ Completely rewritten with UniFFI proc-macros. No internal crates were modified â
 
 | Module | Functions | Source crate |
 |--------|-----------|-------------|
-| `arithmetic.rs` | `add` | `uniffi-testing-core` |
-| `complex.rs` | `complex_new`, `complex_from_polar`, `complex_magnitude`, `complex_argument`, `complex_conjugate`, `complex_add`, `complex_sub`, `complex_mul`, `complex_div`, `complex_display`, `quadratic_roots_complex` | `uniffi-testing-complex` |
-| `polynomials.rs` | `polynomial_evaluate`, `quadratic_roots`, `linear_root`, `polynomial_add`, `polynomial_multiply`, `polynomial_derivative` | `uniffi-testing-polynomials` |
-| `linear_algebra.rs` | `determinant_2x2`, `determinant_3x3`, `solve_2x2`, `solve_3x3`, `matrix_multiply_2x2`, `matrix_inverse_2x2`, `transpose_2x2`, `dot_product`, `cross_product_3d` | `uniffi-testing-linear-algebra` |
-| `trig.rs` | `degrees_to_radians`, `radians_to_degrees`, `law_of_cosines_side`, `law_of_cosines_angle`, `law_of_sines_side`, `distance_2d`, `distance_3d`, `midpoint_2d`, `triangle_area_heron`, `circle_area`, `circle_circumference` | `uniffi-testing-trig` |
-| `sequences.rs` | `arithmetic_term`, `arithmetic_sum`, `geometric_term`, `geometric_sum`, `geometric_sum_infinite`, `factorial`, `permutations`, `combinations`, `gcd`, `lcm`, `fibonacci`, `is_prime` | `uniffi-testing-sequences` |
+| `arithmetic.rs` | `add` | `uniffi-math-demo-core` |
+| `complex.rs` | `complex_new`, `complex_from_polar`, `complex_magnitude`, `complex_argument`, `complex_conjugate`, `complex_add`, `complex_sub`, `complex_mul`, `complex_div`, `complex_display`, `quadratic_roots_complex` | `uniffi-math-demo-complex` |
+| `polynomials.rs` | `polynomial_evaluate`, `quadratic_roots`, `linear_root`, `polynomial_add`, `polynomial_multiply`, `polynomial_derivative` | `uniffi-math-demo-polynomials` |
+| `linear_algebra.rs` | `determinant_2x2`, `determinant_3x3`, `solve_2x2`, `solve_3x3`, `matrix_multiply_2x2`, `matrix_inverse_2x2`, `transpose_2x2`, `dot_product`, `cross_product_3d` | `uniffi-math-demo-linear-algebra` |
+| `trig.rs` | `degrees_to_radians`, `radians_to_degrees`, `law_of_cosines_side`, `law_of_cosines_angle`, `law_of_sines_side`, `distance_2d`, `distance_3d`, `midpoint_2d`, `triangle_area_heron`, `circle_area`, `circle_circumference` | `uniffi-math-demo-trig` |
+| `sequences.rs` | `arithmetic_term`, `arithmetic_sum`, `geometric_term`, `geometric_sum`, `geometric_sum_infinite`, `factorial`, `permutations`, `combinations`, `gcd`, `lcm`, `fibonacci`, `is_prime` | `uniffi-math-demo-sequences` |
 
 ## Python Bindings (`bindings/python/`)
 
@@ -49,25 +49,25 @@ Completely rewritten with UniFFI proc-macros. No internal crates were modified â
 
 ```bash
 # Build the FFI crate
-cargo build --release -p uniffi-testing-ffi
+cargo build --release -p uniffi-math-demo-ffi
 
 # Generate Python bindings
 cargo run --release --bin uniffi-bindgen -- generate \
-    --library target/release/libuniffi_testing_ffi.so \
+    --library target/release/libuniffi_math_demo_ffi.so \
     --language python \
     --out-dir bindings/python
-cp target/release/libuniffi_testing_ffi.so bindings/python/
+cp target/release/libuniffi_math_demo_ffi.so bindings/python/
 
 # Generate Go bindings
 uniffi-bindgen-go \
-    --library target/release/libuniffi_testing_ffi.so \
+    --library target/release/libuniffi_math_demo_ffi.so \
     --out-dir bindings/go
-cp target/release/libuniffi_testing_ffi.a bindings/go/uniffi_testing_ffi/
+cp target/release/libuniffi_math_demo_ffi.a bindings/go/uniffi_math_demo_ffi/
 ```
 
 Note: After regenerating Go bindings, add the CGo LDFLAGS directive to the generated `.go` file:
 ```
-// #cgo LDFLAGS: -L${SRCDIR} -luniffi_testing_ffi -lm -ldl -lpthread
+// #cgo LDFLAGS: -L${SRCDIR} -luniffi_math_demo_ffi -lm -ldl -lpthread
 ```
 
 ## Version Dependencies

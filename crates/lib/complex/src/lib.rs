@@ -1,4 +1,4 @@
-use uniffi_testing_core as core;
+use uniffi_math_demo_core as core;
 use std::fmt;
 use std::ops::{Add, Div, Mul, Sub};
 

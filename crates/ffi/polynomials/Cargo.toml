@@ -1,20 +1,20 @@
 [package]
-name = "uniffi-testing-polynomials-ffi"
+name = "uniffi-math-demo-polynomials-ffi"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "UniFFI bindings for uniffi-testing-polynomials"
+description = "UniFFI bindings for uniffi-math-demo-polynomials"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
-name = "uniffi_testing_polynomials_ffi"
+name = "uniffi_math_demo_polynomials_ffi"
 
 [features]
-wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-fns", "dep:uniffi-runtime-wasm", "uniffi-testing-types-ffi/wasm"]
+wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-fns", "dep:uniffi-runtime-wasm", "uniffi-math-demo-types-ffi/wasm"]
 
 [dependencies]
 uniffi.workspace = true
 uniffi-runtime-wasm = { workspace = true, optional = true }
-uniffi-testing-polynomials.workspace = true
-uniffi-testing-types-ffi.workspace = true
+uniffi-math-demo-polynomials.workspace = true
+uniffi-math-demo-types-ffi.workspace = true

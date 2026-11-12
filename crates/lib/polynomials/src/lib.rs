@@ -1,4 +1,4 @@
-use uniffi_testing_core as core;
+use uniffi_math_demo_core as core;
 
 pub fn evaluate(coeffs: &[f64], x: f64) -> f64 {
     coeffs.iter().fold(0.0, |acc, &c| acc * x + c)

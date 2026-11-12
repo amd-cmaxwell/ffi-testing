@@ -5,7 +5,7 @@
 Each FFI crate gets its own npm package under `<npm-scope>/`, mirroring the monorepo structure. Packages are installable via pnpm's git subdirectory support:
 
 ```
-pnpm install git+https://github.com/<owner>/<repo>#path=bindings/wasm/<npm-scope>/uniffi-testing-core-ffi
+pnpm install git+https://github.com/<owner>/<repo>#path=bindings/wasm/<npm-scope>/uniffi-math-demo-core-ffi
 ```
 
 CI commits only source files — no `dist/`, no `node_modules/`. A `prepare` script compiles TypeScript on install.
@@ -32,14 +32,14 @@ These are upstream bugs in https://github.com/nicholasChapman/uniffi-bindgen-js.
 bindings/wasm/
   package.json              (private workspace root)
   pnpm-workspace.yaml       (lists <npm-scope>/*)
-  <npm-scope>/uniffi-testing-core-ffi/
+  <npm-scope>/uniffi-math-demo-core-ffi/
     package.json            (has "prepare": "tsc")
     tsconfig.json
     src/
       index.ts              (generated — re-exports + init)
-      uniffi_testing_core_ffi.ts
-      uniffi_testing_core_ffi-ffi.ts
-      uniffi_testing_core_ffi.wasm
+      uniffi_math_demo_core_ffi.ts
+      uniffi_math_demo_core_ffi-ffi.ts
+      uniffi_math_demo_core_ffi.wasm
 ```
 
 Crates with types dependency (complex, polynomials, sequences, linear_algebra, trig) include the types `.ts` files inline — the generator bundles them, so no cross-package npm dependencies are needed.
@@ -57,4 +57,4 @@ Crates with types dependency (complex, polynomials, sequences, linear_algebra, t
 Each FFI crate needs:
 - `wasm` feature enabling `uniffi/wasm-unstable-single-threaded`, `uniffi/scaffolding-ffi-buffer-fns`, `dep:uniffi-runtime-wasm`
 - `#[cfg(target_arch = "wasm32")] extern crate uniffi_runtime_wasm as _;` in `lib.rs`
-- Crates depending on `uniffi-testing-types-ffi` must propagate the `wasm` feature
+- Crates depending on `uniffi-math-demo-types-ffi` must propagate the `wasm` feature

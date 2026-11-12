@@ -3,8 +3,8 @@ extern crate uniffi_runtime_wasm as _;
 
 uniffi::setup_scaffolding!();
 
-use uniffi_testing_trig as trig_crate;
-use uniffi_testing_types_ffi::{MathError, Point2};
+use uniffi_math_demo_trig as trig_crate;
+use uniffi_math_demo_types_ffi::{MathError, Point2};
 
 #[uniffi::export]
 pub fn degrees_to_radians(deg: f64) -> f64 {
