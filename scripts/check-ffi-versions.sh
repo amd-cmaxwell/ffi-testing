@@ -49,7 +49,7 @@ for ffi_toml in "${tomls[@]}"; do
   crate_dir=$(basename "$(dirname "$ffi_toml")")
   lib_toml="crates/lib/${crate_dir}/Cargo.toml"
   if [ ! -f "$lib_toml" ]; then
-    log_notice "Skipping crates/ffi/${crate_dir} — no corresponding lib crate"
+    log_notice "Skipping Lib/FFI version parity check for crates/ffi/${crate_dir} — no corresponding lib crate"
     skipped=$((skipped + 1))
     continue
   fi
@@ -76,7 +76,8 @@ for ffi_toml in "${tomls[@]}"; do
   checked=$((checked + 1))
 done
 log_endgroup
-log_notice "Checked ${checked} FFI/lib pairs, skipped ${skipped} FFI-only crates"
+[ $use_cached ] && maybe_staged="staged "
+log_notice "Checked ${checked} ${maybe_staged}FFI/lib pairs, unconditionally skipped ${skipped} FFI-only crates"
 if $failed; then
   log_error "One or more FFI crate versions are behind their lib crates"
   exit 1

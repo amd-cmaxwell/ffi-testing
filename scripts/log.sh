@@ -20,9 +20,9 @@ _log() {
   if [ -n "${GITHUB_ACTIONS:-}" ]; then
     local attrs=""
     [ -n "$file" ] && attrs=" file=${file}"
-    echo "::${level}${attrs}::${emoji} ${msg}"
+    echo "::${level}${attrs}::${emoji}  ${msg}"
   else
-    echo "${emoji} ${msg}"
+    echo "${emoji}  ${msg}"
   fi
 }
 
