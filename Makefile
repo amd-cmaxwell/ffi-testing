@@ -50,7 +50,8 @@ endef
        test-python test-go test-js test-web test-all \
        stamp-uniffi-config _check-repo-owner \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
-       clean-web clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
+       clean-py-demo clean-web clean-demos \
+       clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
 
 # ── Project identity ─────────────────────────────────────────────────────────
 # Resolution order: git remote -> REPO_SLUG -> REPO_OWNER + REPO_NAME.
@@ -177,28 +178,18 @@ test:
 # ── Dependency bootstrapping ─────────────────────────────────────────────────
 # These targets are no-ops when the required tools are already installed.
 
-# Ensures maturin is available (installs via pipx → pip if needed)
+# Ensures uv and maturin are available
 python-dependencies:
 	@$(_shell_log_helpers) \
+	command -v uv >/dev/null 2>&1 || { \
+		log_info "uv not found, installing"; \
+		log_debug "curl -LsSf https://astral.sh/uv/install.sh | sh"; \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+	}; \
 	command -v maturin >/dev/null 2>&1 || { \
-		echo "  maturin not found, installing via pipx"; \
-		command -v pipx >/dev/null 2>&1 || { \
-			echo "  pipx not found, installing via pip"; \
-			if command -v pip >/dev/null 2>&1; then \
-				log_debug "pip install --user pipx"; \
-				pip install --user pipx; \
-			elif python3 -m pip --version >/dev/null 2>&1; then \
-				log_debug "python3 -m pip install --user pipx"; \
-				python3 -m pip install --user pipx; \
-			else \
-				echo "  pip not found, installing"; \
-				curl -sSL https://bootstrap.pypa.io/get-pip.py | python3; \
-				log_debug "python3 -m pip install --user pipx"; \
-				python3 -m pip install --user pipx; \
-			fi; \
-		}; \
-		log_debug "pipx install maturin"; \
-		pipx install maturin; \
+		log_info "maturin not found, installing via uv"; \
+		log_debug "uv tool install maturin"; \
+		uv tool install maturin; \
 	}
 
 # Ensures Node.js is available (installs via nvm if needed)
@@ -510,10 +501,19 @@ generate-all: generate-python generate-go generate-js
 
 # ── Smoke tests ──────────────────────────────────────────────────────────────
 
-test-python: install-python
+test-python: generate-python
+	$(call _log_info,installing py-demo via uv tool)
+	@$(_shell_log_helpers) \
+	with_args=""; \
+	for whl in $(PY_WHEELS_DIR)/*.whl; do \
+		log_info "bundling $$(basename $$whl)"; \
+		with_args="$$with_args --with $$whl"; \
+	done; \
+	log_debug "uv tool install --force $(CURDIR)/examples/py-demo $$with_args"; \
+	uv tool install --force $(CURDIR)/examples/py-demo $$with_args
 	$(call _log_info,running python smoke test)
-	$(call _log_debug,python examples/py-demo)
-	@python examples/py-demo
+	$(call _log_debug,uniffi-math-demo)
+	@uniffi-math-demo
 
 test-go: install-go
 	@$(_shell_log_helpers) \
@@ -604,10 +604,15 @@ clean-js-artifacts:
 
 clean-artifacts: clean-py-artifacts clean-js-artifacts
 
+clean-py-demo:
+	-uv tool uninstall uniffi-math-demo 2>/dev/null || true
+
 clean-web:
 	rm -rf $(CURDIR)/examples/web-demo/node_modules $(CURDIR)/examples/web-demo/dist
 	rm -f $(CURDIR)/examples/web-demo/package.json $(CURDIR)/examples/web-demo/package-lock.json
 
-clean-all: clean clean-bindings clean-artifacts clean-web
+clean-demos: clean-py-demo clean-web
+
+clean-all: clean clean-bindings clean-artifacts clean-demos
 
 purge: clean-tools clean-all
