@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: sync-workspace-versions.sh [ffi_lib1 ffi_lib2 ...]
+# Usage: sync-workspace-versions.sh [--cached] [ffi_lib1 ffi_lib2 ...]
 # If arguments are given, syncs those FFI crates and their corresponding lib crates.
 # FFI lib names use underscores (e.g. "core trig linear_algebra").
 # If no arguments are given, all crates under crates/lib/ and crates/ffi/ are synced.
 # Bumps workspace dependency versions in the root Cargo.toml to match each
 # crate's own [package].version.
+#
+# --cached  Read crate versions from the git staging area instead of the working
+#           tree. Only crates with a staged Cargo.toml are synced. The root
+#           Cargo.toml is still written on disk (the caller is expected to stage it).
 
 . "$(dirname "$0")/log.sh"
+
+use_cached=false
+if [ "${1:-}" = "--cached" ]; then
+  use_cached=true; shift
+fi
 
 if [ $# -gt 0 ]; then
   tomls=()
@@ -21,11 +30,23 @@ else
   tomls=(crates/lib/*/Cargo.toml crates/ffi/*/Cargo.toml)
 fi
 
+staged_files=""
+if $use_cached; then
+  staged_files=$(git diff --cached --name-only)
+fi
+
 updated=false
 for toml in "${tomls[@]}"; do
   [ -f "$toml" ] || continue
   crate_path=$(dirname "$toml")
-  crate_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+
+  if $use_cached; then
+    echo "$staged_files" | grep -q "^${toml}$" || continue
+    crate_ver=$(git show :"${toml}" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/')
+  else
+    crate_ver=$(grep '^version' "$toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+  fi
+
   ws_line=$(grep "path = \"${crate_path}\"" Cargo.toml) || continue
   ws_ver=$(echo "$ws_line" | sed 's/.*version = "\([^"]*\)".*/\1/')
 

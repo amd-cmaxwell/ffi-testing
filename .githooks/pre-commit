@@ -3,6 +3,8 @@ set -euo pipefail
 
 . "$(dirname "$0")/../scripts/log.sh"
 
+trap 'log_error "pre-commit hook failed"; git status' ERR
+
 # Reject manual edits to auto-generated bindings
 if [ "${SKIP_BINDINGS_CHECK:-}" != "1" ]; then
   bindings_files=$(git diff --cached --name-only -- bindings/ | grep -v '^bindings/README\.md$' || true)
@@ -14,10 +16,14 @@ if [ "${SKIP_BINDINGS_CHECK:-}" != "1" ]; then
 fi
 
 # Sync FFI crate versions to match their lib crates
-result=$(./scripts/sync-ffi-versions.sh)
+result=$(./scripts/sync-ffi-versions.sh --cached)
 if [ -n "$result" ] && [ "$result" != "" ]; then
   log_notice "Pre-commit: synced FFI versions — staging updated files"
-  git add crates/ffi/*/Cargo.toml Cargo.toml
+  for crate_us in $result; do
+    git add "crates/ffi/$(echo "$crate_us" | tr '_' '-')/Cargo.toml"
+  done
+  git add Cargo.toml
+  git status
 fi
 
 # Check that staged lib crate changes have corresponding FFI updates
@@ -26,14 +32,15 @@ if [ "${SKIP_FFI_COVERAGE:-}" != "1" ]; then
 fi
 
 # Sync workspace dependency versions to match crate versions
-result=$(./scripts/sync-workspace-versions.sh)
+result=$(./scripts/sync-workspace-versions.sh --cached)
 if [ "$result" = "updated" ]; then
   log_notice "Pre-commit: synced workspace dependency versions — staging Cargo.toml"
   git add Cargo.toml
+  git status
 fi
 
 # Validate FFI crate versions >= lib crate versions
-./scripts/check-ffi-versions.sh
+./scripts/check-ffi-versions.sh --cached
 
 # Validate workspace dependency versions match crate versions
-./scripts/check-workspace-versions.sh
+./scripts/check-workspace-versions.sh --cached

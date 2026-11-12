@@ -43,6 +43,24 @@ compute_ffi_target() {
   fi
 }
 
+use_cached=false
+if [ "${1:-}" = "--cached" ]; then
+  use_cached=true; shift
+fi
+
+staged_files=""
+if $use_cached; then
+  staged_files=$(git -C "$REPO_ROOT" diff --cached --name-only)
+fi
+
+read_version() {
+  if $use_cached; then
+    git -C "$REPO_ROOT" show :"$1" 2>/dev/null | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/'
+  else
+    grep '^version' "$REPO_ROOT/$1" | head -1 | sed 's/.*"\(.*\)"/\1/'
+  fi
+}
+
 changed=()
 
 for lib_toml in "$CRATES_DIR"/lib/*/Cargo.toml; do
@@ -51,7 +69,17 @@ for lib_toml in "$CRATES_DIR"/lib/*/Cargo.toml; do
   ffi_toml="$FFI_DIR/$crate_dir/Cargo.toml"
   [ -f "$ffi_toml" ] || continue
 
-  lib_version="$(grep '^version' "$lib_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')"
+  lib_rel="crates/lib/${crate_dir}/Cargo.toml"
+  ffi_rel="crates/ffi/${crate_dir}/Cargo.toml"
+
+  if $use_cached; then
+    echo "$staged_files" | grep -q "^${lib_rel}$" || continue
+  fi
+
+  # Read the lib version from the staged index (--cached) or working tree.
+  lib_version="$(read_version "$lib_rel")"
+  # Always read the current FFI version from the working tree — this script
+  # *writes* the FFI Cargo.toml, so the input is whatever is on disk now.
   ffi_version="$(grep '^version' "$ffi_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')"
 
   lib_tag=$(latest_tag_for "crates/${crate_dir}")
@@ -70,10 +98,12 @@ for lib_toml in "$CRATES_DIR"/lib/*/Cargo.toml; do
       continue
     fi
 
-    head_ffi_version=$(git -C "$REPO_ROOT" show HEAD:"crates/ffi/${crate_dir}/Cargo.toml" 2>/dev/null \
+    # Idempotency: if the FFI version already differs from HEAD, this sync
+    # (or a manual bump) already ran — skip.
+    head_ffi_version=$(git -C "$REPO_ROOT" show HEAD:"${ffi_rel}" 2>/dev/null \
       | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/') || true
     if [ -n "$head_ffi_version" ] && [ "$ffi_version" != "$head_ffi_version" ]; then
-      log_debug "$crate_dir: FFI already bumped in working tree ($head_ffi_version -> $ffi_version) — skipping" >&2
+      log_debug "$crate_dir: FFI already bumped ($head_ffi_version -> $ffi_version) — skipping" >&2
       continue
     fi
 

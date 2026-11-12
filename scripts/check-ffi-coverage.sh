@@ -57,17 +57,26 @@ if [ ${#missing[@]} -gt 0 ]; then
   mapfile -t missing < <(printf '%s\n' "${missing[@]}" | sort -u)
 fi
 
-# For lib crates with a minor or major version bump, require .rs changes in FFI src
+# For lib crates with a minor or major version bump, require .rs changes in FFI src.
+# In --cached mode, only check lib crates whose Cargo.toml is staged, and read
+# the staged version so unstaged working-tree changes don't trigger false positives.
 for lib_toml in crates/lib/*/Cargo.toml; do
   [ -f "$lib_toml" ] || continue
   crate_name=$(basename "$(dirname "$lib_toml")")
   [ -d "crates/ffi/$crate_name" ] || continue
 
+  if [ "${1:-}" = "--cached" ]; then
+    echo "$changed_files" | grep -q "^${lib_toml}$" || continue
+    cur_version=$(git show :"${lib_toml}" 2>/dev/null \
+      | grep '^version' | head -1 | sed 's/.*"\(.*\)"/\1/')
+  else
+    cur_version=$(grep '^version' "$lib_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
+  fi
+
   lib_tag=$(latest_tag_for "crates/${crate_name}")
   [ -z "$lib_tag" ] && continue
 
   prev_version=$(version_from_tag "$lib_tag")
-  cur_version=$(grep '^version' "$lib_toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
   [ "$prev_version" = "$cur_version" ] && continue
 
   bump=$(detect_bump "$prev_version" "$cur_version")
