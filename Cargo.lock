@@ -536,117 +536,117 @@ dependencies = [
 ]
 
 [[package]]
+name = "uniffi-math-demo-complex"
+version = "0.1.0"
+dependencies = [
+ "uniffi-math-demo-core",
+]
+
+[[package]]
+name = "uniffi-math-demo-complex-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-complex",
+ "uniffi-math-demo-types-ffi",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
+name = "uniffi-math-demo-core"
+version = "0.1.0"
+
+[[package]]
+name = "uniffi-math-demo-core-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-core",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
+name = "uniffi-math-demo-linear-algebra"
+version = "0.1.0"
+dependencies = [
+ "uniffi-math-demo-core",
+]
+
+[[package]]
+name = "uniffi-math-demo-linear-algebra-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-linear-algebra",
+ "uniffi-math-demo-types-ffi",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
+name = "uniffi-math-demo-polynomials"
+version = "0.1.0"
+dependencies = [
+ "uniffi-math-demo-core",
+]
+
+[[package]]
+name = "uniffi-math-demo-polynomials-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-polynomials",
+ "uniffi-math-demo-types-ffi",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
+name = "uniffi-math-demo-sequences"
+version = "0.1.0"
+dependencies = [
+ "uniffi-math-demo-core",
+]
+
+[[package]]
+name = "uniffi-math-demo-sequences-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-sequences",
+ "uniffi-math-demo-types-ffi",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
+name = "uniffi-math-demo-trig"
+version = "0.1.0"
+dependencies = [
+ "uniffi-math-demo-core",
+]
+
+[[package]]
+name = "uniffi-math-demo-trig-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-trig",
+ "uniffi-math-demo-types-ffi",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
+name = "uniffi-math-demo-types-ffi"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
+ "uniffi-math-demo-core",
+ "uniffi-runtime-wasm",
+]
+
+[[package]]
 name = "uniffi-runtime-wasm"
 version = "0.31.0-6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29b8946ac91124a03593b945812f1c30acd25bf6a05a24f2bbcf8740f85ce210"
-
-[[package]]
-name = "uniffi-testing-complex"
-version = "0.1.0"
-dependencies = [
- "uniffi-testing-core",
-]
-
-[[package]]
-name = "uniffi-testing-complex-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-complex",
- "uniffi-testing-types-ffi",
-]
-
-[[package]]
-name = "uniffi-testing-core"
-version = "0.1.0"
-
-[[package]]
-name = "uniffi-testing-core-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-core",
-]
-
-[[package]]
-name = "uniffi-testing-linear-algebra"
-version = "0.1.0"
-dependencies = [
- "uniffi-testing-core",
-]
-
-[[package]]
-name = "uniffi-testing-linear-algebra-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-linear-algebra",
- "uniffi-testing-types-ffi",
-]
-
-[[package]]
-name = "uniffi-testing-polynomials"
-version = "0.1.0"
-dependencies = [
- "uniffi-testing-core",
-]
-
-[[package]]
-name = "uniffi-testing-polynomials-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-polynomials",
- "uniffi-testing-types-ffi",
-]
-
-[[package]]
-name = "uniffi-testing-sequences"
-version = "0.1.0"
-dependencies = [
- "uniffi-testing-core",
-]
-
-[[package]]
-name = "uniffi-testing-sequences-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-sequences",
- "uniffi-testing-types-ffi",
-]
-
-[[package]]
-name = "uniffi-testing-trig"
-version = "0.1.0"
-dependencies = [
- "uniffi-testing-core",
-]
-
-[[package]]
-name = "uniffi-testing-trig-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-trig",
- "uniffi-testing-types-ffi",
-]
-
-[[package]]
-name = "uniffi-testing-types-ffi"
-version = "0.1.0"
-dependencies = [
- "uniffi",
- "uniffi-runtime-wasm",
- "uniffi-testing-core",
-]
 
 [[package]]
 name = "uniffi_bindgen"

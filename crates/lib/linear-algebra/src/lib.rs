@@ -1,4 +1,4 @@
-use uniffi_testing_core as core;
+use uniffi_math_demo_core as core;
 
 const EPSILON: f64 = 1e-12;
 

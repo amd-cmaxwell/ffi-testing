@@ -90,13 +90,13 @@ Install from the `bindings` branch using version tags:
 
 ```sh
 # Go -- uses the per-module tag (bindings/go/{package}/vX.Y.Z)
-GONOSUMCHECK=* go get github.com/<owner>/<repo>/bindings/go/uniffi_testing_core_ffi@v0.2.0
+GONOSUMCHECK=* go get github.com/<owner>/<repo>/bindings/go/uniffi_math_demo_core_ffi@v0.2.0
 
 # Python -- uses the ffi/{name}/vX.Y.Z tag
-pip install "git+https://github.com/<owner>/<repo>.git@ffi/core/v0.2.0#subdirectory=bindings/python/uniffi-testing-core-ffi"
+pip install "git+https://github.com/<owner>/<repo>.git@ffi/core/v0.2.0#subdirectory=bindings/python/uniffi-math-demo-core-ffi"
 
 # JavaScript -- pnpm supports git subdirectory installs
-pnpm add "github:<owner>/<repo>#ffi/core/v0.2.0&path=bindings/js/<npm-scope>/uniffi-testing-core-ffi"
+pnpm add "github:<owner>/<repo>#ffi/core/v0.2.0&path=bindings/js/<npm-scope>/uniffi-math-demo-core-ffi"
 ```
 
 ### Go tag requirements

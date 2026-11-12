@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	complex_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_complex_ffi"
-	core_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_core_ffi"
-	linalg_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_linear_algebra_ffi"
-	poly_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_polynomials_ffi"
-	seq_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_sequences_ffi"
-	trig_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_trig_ffi"
-	types_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_testing_types_ffi"
+	complex_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_complex_ffi"
+	core_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_core_ffi"
+	linalg_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_linear_algebra_ffi"
+	poly_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_polynomials_ffi"
+	seq_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_sequences_ffi"
+	trig_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_trig_ffi"
+	types_ffi "github.com/amd-cmaxwell/ffi-testing/bindings/go/uniffi_math_demo_types_ffi"
 )
 
 func must[T any](v T, err error) T {

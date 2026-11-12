@@ -2,7 +2,7 @@
 
 ## Context
 
-The UniFFI bindings are generated but live as raw output files — no packaging metadata, no proper module structure. Both Python and Go packages should be named `uniffi_testing_ffi` and be installable via their language's standard tooling.
+The UniFFI bindings are generated but live as raw output files — no packaging metadata, no proper module structure. Both Python and Go packages should be named `uniffi_math_demo_ffi` and be installable via their language's standard tooling.
 
 ## Python Package (via maturin)
 
@@ -27,15 +27,15 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "uniffi-testing-ffi"
+name = "uniffi-math-demo-ffi"
 version = "0.1.0"
-description = "Python bindings for the uniffi-testing math library"
+description = "Python bindings for the uniffi-math-demo math library"
 requires-python = ">=3.8"
 
 [tool.maturin]
 bindings = "uniffi"
 manifest-path = "../../crates/ffi/Cargo.toml"
-module-name = "uniffi_testing_ffi"
+module-name = "uniffi_math_demo_ffi"
 ```
 
 ### Commands
@@ -46,7 +46,7 @@ cd bindings/python && maturin develop --release
 
 # Build a distributable wheel
 cd bindings/python && maturin build --release
-# Output: target/wheels/uniffi_testing_ffi-0.1.0-py3-none-linux_x86_64.whl
+# Output: target/wheels/uniffi_math_demo_ffi-0.1.0-py3-none-linux_x86_64.whl
 
 # Run the demo
 python examples/demo.py
@@ -72,17 +72,17 @@ bindings/go/
   example/
     demo/
       main.go                        (moved from demo.go, updated import path)
-  uniffi_testing_ffi/
-    uniffi_testing_ffi.go            (unchanged)
-    uniffi_testing_ffi.h             (unchanged)
-    libuniffi_testing_ffi.a          (unchanged)
+  uniffi_math_demo_ffi/
+    uniffi_math_demo_ffi.go            (unchanged)
+    uniffi_math_demo_ffi.h             (unchanged)
+    libuniffi_math_demo_ffi.a          (unchanged)
 ```
 
 ### Steps
 
-1. **Update `go.mod`** — change module path from `uniffi-testing-go` to `github.com/<owner>/<repo>/bindings/go`
+1. **Update `go.mod`** — change module path from `uniffi-math-demo-go` to `github.com/<owner>/<repo>/bindings/go`
 2. **Move `demo.go`** to `example/demo/main.go` — keeps module root clean as a library, not an executable
-3. **Update import path** in the moved demo from `uniffi-testing-go/uniffi_testing_ffi` to `github.com/<owner>/<repo>/bindings/go/uniffi_testing_ffi`
+3. **Update import path** in the moved demo from `uniffi-math-demo-go/uniffi_math_demo_ffi` to `github.com/<owner>/<repo>/bindings/go/uniffi_math_demo_ffi`
 4. **Create `Makefile`** — targets to rebuild .a from Rust source and run demo
 5. **Create `README.md`** — usage, import path, prerequisites
 
@@ -93,7 +93,7 @@ For `go get` to work, tags must follow subdirectory convention: `bindings/go/v0.
 ### Verification
 
 ```bash
-cd bindings/go && go build ./uniffi_testing_ffi/
+cd bindings/go && go build ./uniffi_math_demo_ffi/
 cd bindings/go && go run ./example/demo/
 ```
 

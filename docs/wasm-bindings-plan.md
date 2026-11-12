@@ -35,10 +35,10 @@ Note: needs `clap` and `anyhow` as dependencies of the types-ffi crate (or just 
 **`uniffi.toml`** — add `[bindings.js]` section (external packages config, similar to python):
 ```toml
 [bindings.js]
-external_packages = { uniffi_testing_types_ffi = "./uniffi_testing_types_ffi" }
+external_packages = { uniffi_math_demo_types_ffi = "./uniffi_math_demo_types_ffi" }
 ```
 
-**Verify:** `cargo build --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen-js`
+**Verify:** `cargo build --release -p uniffi-math-demo-types-ffi --features ffi --bin uniffi-bindgen-js`
 
 ## Pass 3: Add `generate-wasm` Makefile target + bindings/wasm directory
 
@@ -48,9 +48,9 @@ external_packages = { uniffi_testing_types_ffi = "./uniffi_testing_types_ffi" }
   1. Builds all FFI crates for `wasm32-unknown-unknown` target: `cargo build --release --target wasm32-unknown-unknown` (needs the wasm32 target installed)
   2. For each FFI lib, runs `uniffi-bindgen-js generate` with the `.wasm` file as input:
      ```
-     cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen-js -- \
-       generate target/wasm32-unknown-unknown/release/uniffi_testing_${mod}_ffi.wasm \
-       --out-dir $(WASM_BINDINGS_DIR)/uniffi_testing_${mod}_ffi
+     cargo run --release -p uniffi-math-demo-types-ffi --features ffi --bin uniffi-bindgen-js -- \
+       generate target/wasm32-unknown-unknown/release/uniffi_math_demo_${mod}_ffi.wasm \
+       --out-dir $(WASM_BINDINGS_DIR)/uniffi_math_demo_${mod}_ffi
      ```
   3. Note: uniffi-bindgen-js reads from `.wasm` files (not `.so`/`.dylib`)
 - Add `generate-wasm` to `generate-all`
@@ -80,9 +80,9 @@ js-bindings:
       run: |
         for mod in $FFI_MODULES; do
           echo "  generating wasm bindings for $mod"
-          cargo run --release -p uniffi-testing-types-ffi --features ffi --bin uniffi-bindgen-js -- \
-            generate "target/wasm32-unknown-unknown/release/uniffi_testing_${mod}_ffi.wasm" \
-            --out-dir "$RUNNER_TEMP/uniffi-wasm-gen/uniffi_testing_${mod}_ffi"
+          cargo run --release -p uniffi-math-demo-types-ffi --features ffi --bin uniffi-bindgen-js -- \
+            generate "target/wasm32-unknown-unknown/release/uniffi_math_demo_${mod}_ffi.wasm" \
+            --out-dir "$RUNNER_TEMP/uniffi-wasm-gen/uniffi_math_demo_${mod}_ffi"
         done
     - name: Verify generated files
       run: find "$RUNNER_TEMP/uniffi-wasm-gen" -type f | head -50

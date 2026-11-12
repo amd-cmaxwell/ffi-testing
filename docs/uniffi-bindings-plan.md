@@ -64,7 +64,7 @@ Example:
 ```rust
 #[uniffi::export]
 pub fn quadratic_roots(a: f64, b: f64, c: f64) -> Result<F64Pair, MathError> {
-    let (r1, r2) = uniffi_testing_polynomials::quadratic_roots(a, b, c).map_err(MathError::from)?;
+    let (r1, r2) = uniffi_math_demo_polynomials::quadratic_roots(a, b, c).map_err(MathError::from)?;
     Ok(F64Pair { first: r1, second: r2 })
 }
 ```
@@ -74,11 +74,11 @@ Slice params (`&[f64]`) become `Vec<f64>` in FFI signatures; wrappers pass `&v` 
 ### 5. Generate Python bindings
 
 ```bash
-cargo build --release -p uniffi-testing-ffi
+cargo build --release -p uniffi-math-demo-ffi
 cargo run --release --bin uniffi-bindgen -- generate \
-    --library target/release/libuniffi_testing_ffi.so \
+    --library target/release/libuniffi_math_demo_ffi.so \
     --language python --out-dir bindings/python
-cp target/release/libuniffi_testing_ffi.so bindings/python/
+cp target/release/libuniffi_math_demo_ffi.so bindings/python/
 ```
 
 ### 6. Generate Go bindings
@@ -88,9 +88,9 @@ cargo install uniffi-bindgen-go \
     --git https://github.com/NordSecurity/uniffi-bindgen-go \
     --tag v0.7.1+v0.31.0
 uniffi-bindgen-go \
-    --library target/release/libuniffi_testing_ffi.so \
+    --library target/release/libuniffi_math_demo_ffi.so \
     --out-dir bindings/go
-cp target/release/libuniffi_testing_ffi.a bindings/go/uniffi_testing_ffi/
+cp target/release/libuniffi_math_demo_ffi.a bindings/go/uniffi_math_demo_ffi/
 ```
 
 ### 7. Demo scripts
@@ -101,6 +101,6 @@ cp target/release/libuniffi_testing_ffi.a bindings/go/uniffi_testing_ffi/
 ## Verification
 
 1. `cargo test --workspace` — existing tests still pass (no internal changes)
-2. `cargo build --release -p uniffi-testing-ffi` — FFI crate compiles
+2. `cargo build --release -p uniffi-math-demo-ffi` — FFI crate compiles
 3. Generate Python bindings and run `python3 examples/demo.py`
 4. Generate Go bindings and run `go run examples/demo.go`

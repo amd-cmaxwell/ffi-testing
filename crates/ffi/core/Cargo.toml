@@ -1,14 +1,14 @@
 [package]
-name = "uniffi-testing-core-ffi"
+name = "uniffi-math-demo-core-ffi"
 version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "UniFFI bindings for uniffi-testing-core"
+description = "UniFFI bindings for uniffi-math-demo-core"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "lib"]
-name = "uniffi_testing_core_ffi"
+name = "uniffi_math_demo_core_ffi"
 
 [features]
 wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-fns", "dep:uniffi-runtime-wasm"]
@@ -16,4 +16,4 @@ wasm = ["uniffi/wasm-unstable-single-threaded", "uniffi/scaffolding-ffi-buffer-f
 [dependencies]
 uniffi.workspace = true
 uniffi-runtime-wasm = { workspace = true, optional = true }
-uniffi-testing-core.workspace = true
+uniffi-math-demo-core.workspace = true

@@ -23,7 +23,7 @@ Conditional compilation (`#[cfg(feature = "ffi")]`) could gate the UniFFI scaffo
 
 ### Pure Rust consumers get a clean dependency tree
 
-With separation, a Rust project depending on `uniffi-testing-core` gets only the library and its direct dependencies — no UniFFI, no proc macros, no FFI scaffolding. This matters for compile times and for keeping the dependency tree auditable.
+With separation, a Rust project depending on `uniffi-math-demo-core` gets only the library and its direct dependencies — no UniFFI, no proc macros, no FFI scaffolding. This matters for compile times and for keeping the dependency tree auditable.
 
 ### Independent versioning and release
 
@@ -43,7 +43,7 @@ Gate UniFFI dependencies and scaffolding behind a `ffi` feature. This eliminates
 
 ### Consolidate multiple FFI crates into fewer
 
-Instead of one FFI crate per library crate, combine them into a single `uniffi-testing-ffi` crate. This reduces per-crate overhead but sacrifices independent versioning and independent compilation — a change to one module's FFI layer forces a rebuild and re-release of all bindings. Worth reconsidering only if most releases consistently bump all crates together.
+Instead of one FFI crate per library crate, combine them into a single `uniffi-math-demo-ffi` crate. This reduces per-crate overhead but sacrifices independent versioning and independent compilation — a change to one module's FFI layer forces a rebuild and re-release of all bindings. Worth reconsidering only if most releases consistently bump all crates together.
 
 ## Testing strategy
 

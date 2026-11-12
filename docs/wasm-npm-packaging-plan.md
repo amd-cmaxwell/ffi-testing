@@ -2,31 +2,31 @@
 
 ## Context
 
-Each FFI crate needs its own npm package under `<npm-scope>/`, mirroring the monorepo structure (same as Python gets per-crate wheels and Go gets per-crate packages). The generated TS uses relative `./uniffi_testing_types_ffi` imports for cross-module deps — these need rewriting to npm package names during packaging.
+Each FFI crate needs its own npm package under `<npm-scope>/`, mirroring the monorepo structure (same as Python gets per-crate wheels and Go gets per-crate packages). The generated TS uses relative `./uniffi_math_demo_types_ffi` imports for cross-module deps — these need rewriting to npm package names during packaging.
 
 Two existing bugs to fix: (1) `linear_algebra` and `trig` need `--crate-name` passed to the bindgen, and (2) cross-module imports need the types `.ts`/`.wasm` alongside or rewritten.
 
 ## Package structure (per crate)
 
 ```
-bindings/wasm/<npm-scope>/uniffi-testing-core-ffi/
+bindings/wasm/<npm-scope>/uniffi-math-demo-core-ffi/
   package.json
   tsconfig.json
   src/
-    uniffi_testing_core_ffi.ts    (generated)
-    uniffi_testing_core_ffi.wasm  (generated)
+    uniffi_math_demo_core_ffi.ts    (generated)
+    uniffi_math_demo_core_ffi.wasm  (generated)
     uniffi_runtime.ts             (generated)
   dist/                           (compiled .js + .d.ts)
 ```
 
 For crates that import types (complex, polynomials, sequences, linear_algebra, trig):
 ```
-bindings/wasm/<npm-scope>/uniffi-testing-complex-ffi/
-  package.json                    (has dependency on <npm-scope>/uniffi-testing-types-ffi)
+bindings/wasm/<npm-scope>/uniffi-math-demo-complex-ffi/
+  package.json                    (has dependency on <npm-scope>/uniffi-math-demo-types-ffi)
   tsconfig.json
   src/
-    uniffi_testing_complex_ffi.ts (import rewritten to '<npm-scope>/uniffi-testing-types-ffi')
-    uniffi_testing_complex_ffi.wasm
+    uniffi_math_demo_complex_ffi.ts (import rewritten to '<npm-scope>/uniffi-math-demo-types-ffi')
+    uniffi_math_demo_complex_ffi.wasm
     uniffi_runtime.ts
   dist/
 ```
@@ -41,10 +41,10 @@ bindings/wasm/<npm-scope>/uniffi-testing-complex-ffi/
 ### 2. Add `package-wasm` Makefile target
 
 For each FFI lib:
-1. Generate into a temp dir, then move into `$(WASM_BINDINGS_DIR)/<npm-scope>/uniffi-testing-<crate>-ffi/src/`
+1. Generate into a temp dir, then move into `$(WASM_BINDINGS_DIR)/<npm-scope>/uniffi-math-demo-<crate>-ffi/src/`
 2. Stamp `package.json` from template (substitute `PKG_NAME` and add deps for types if needed)
 3. Copy `tsconfig.json` template
-4. Rewrite any `from './uniffi_testing_types_ffi'` imports to `from '<npm-scope>/uniffi-testing-types-ffi'`
+4. Rewrite any `from './uniffi_math_demo_types_ffi'` imports to `from '<npm-scope>/uniffi-math-demo-types-ffi'`
 5. Run `npx tsc` in each package dir to produce `dist/`
 
 ### 3. New templates
@@ -88,7 +88,7 @@ For each FFI lib:
 
 For each package, generate `src/index.ts`:
 ```typescript
-export * from './uniffi_testing_core_ffi.js';
+export * from './uniffi_math_demo_core_ffi.js';
 ```
 
 ### 5. Update `generate-wasm` to use `--crate-name`
@@ -113,4 +113,4 @@ Update `js-bindings` job to run `make package-wasm` and verify compiled output.
 ## Verification
 1. `make generate-wasm` — each module dir has correct `.ts` with own-name exports
 2. `make package-wasm` — each `dist/` has `.js` + `.d.ts`, cross-module imports rewritten
-3. `cd bindings/wasm/<npm-scope>/uniffi-testing-core-ffi && npm pack` produces valid tarball
+3. `cd bindings/wasm/<npm-scope>/uniffi-math-demo-core-ffi && npm pack` produces valid tarball

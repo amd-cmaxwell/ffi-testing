@@ -16,18 +16,18 @@ description = "UniFFI testing monorepo"
 
 # version required for cargo publish — must match each crate's [package].version
 [workspace.dependencies]
-uniffi-testing-core = { path = "crates/lib/core", version = "0.1.0" }
-uniffi-testing-complex = { path = "crates/lib/complex", version = "0.1.0" }
-uniffi-testing-polynomials = { path = "crates/lib/polynomials", version = "0.1.0" }
-uniffi-testing-linear-algebra = { path = "crates/lib/linear-algebra", version = "0.1.0" }
-uniffi-testing-trig = { path = "crates/lib/trig", version = "0.1.0" }
-uniffi-testing-sequences = { path = "crates/lib/sequences", version = "0.1.0" }
-uniffi-testing-core-ffi = { path = "crates/ffi/core", version = "0.1.0" }
-uniffi-testing-complex-ffi = { path = "crates/ffi/complex", version = "0.1.0" }
-uniffi-testing-polynomials-ffi = { path = "crates/ffi/polynomials", version = "0.1.0" }
-uniffi-testing-linear-algebra-ffi = { path = "crates/ffi/linear-algebra", version = "0.1.0" }
-uniffi-testing-trig-ffi = { path = "crates/ffi/trig", version = "0.1.0" }
-uniffi-testing-sequences-ffi = { path = "crates/ffi/sequences", version = "0.1.0" }
-uniffi-testing-types-ffi = { path = "crates/ffi/types", version = "0.1.0" }
+uniffi-math-demo-core = { path = "crates/lib/core", version = "0.1.0" }
+uniffi-math-demo-complex = { path = "crates/lib/complex", version = "0.1.0" }
+uniffi-math-demo-polynomials = { path = "crates/lib/polynomials", version = "0.1.0" }
+uniffi-math-demo-linear-algebra = { path = "crates/lib/linear-algebra", version = "0.1.0" }
+uniffi-math-demo-trig = { path = "crates/lib/trig", version = "0.1.0" }
+uniffi-math-demo-sequences = { path = "crates/lib/sequences", version = "0.1.0" }
+uniffi-math-demo-core-ffi = { path = "crates/ffi/core", version = "0.1.0" }
+uniffi-math-demo-complex-ffi = { path = "crates/ffi/complex", version = "0.1.0" }
+uniffi-math-demo-polynomials-ffi = { path = "crates/ffi/polynomials", version = "0.1.0" }
+uniffi-math-demo-linear-algebra-ffi = { path = "crates/ffi/linear-algebra", version = "0.1.0" }
+uniffi-math-demo-trig-ffi = { path = "crates/ffi/trig", version = "0.1.0" }
+uniffi-math-demo-sequences-ffi = { path = "crates/ffi/sequences", version = "0.1.0" }
+uniffi-math-demo-types-ffi = { path = "crates/ffi/types", version = "0.1.0" }
 uniffi = { version = "0.31" }
 uniffi-runtime-wasm = { version = "0.31.0-6" }
