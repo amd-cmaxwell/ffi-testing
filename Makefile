@@ -377,8 +377,10 @@ install-go: generate-go
 	$(call _log_debug,GO_BINDINGS_DIR = $(GO_BINDINGS_DIR))
 	@$(_shell_log_helpers) \
 	cd $(GO_BINDINGS_DIR) && \
-		log_debug "go work init"; \
-		go work init && \
+		if [ ! -f go.work ]; then \
+			log_debug "go work init"; \
+			go work init; \
+		fi && \
 		for d in */go.mod; do \
 			mod_dir=$$(dirname $$d); \
 			log_debug "go work use $$mod_dir"; \
