@@ -32,8 +32,6 @@ jobs:
   build-python-bindings:
     name: Python bindings (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    env:
-      LOG_LEVEL: ${{ runner.debug == '1' && '2' || '1' }}
     strategy:
       fail-fast: false
       matrix:
@@ -49,6 +47,9 @@ jobs:
             cgo_os: windows
             cgo_arch: amd64
     steps:
+      - name: Set LOG_LEVEL for debug runs
+        run: echo "LOG_LEVEL=${{ runner.debug == '1' && '2' || '1' }}" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
