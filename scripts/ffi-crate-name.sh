@@ -10,12 +10,14 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+. "$(dirname "$0")/log.sh"
+
 format="hy"
 while [[ "${1:-}" == --* ]]; do
   case "$1" in
     --us) format="us"; shift ;;
     --hy) format="hy"; shift ;;
-    *) echo "error: unknown flag $1" >&2; exit 1 ;;
+    *) log_error "unknown flag $1" >&2; exit 1 ;;
   esac
 done
 
@@ -23,7 +25,7 @@ crate_dir="${1:?usage: ffi-crate-name.sh [--us|--hy] <crate-dir>}"
 cargo_toml="${REPO_ROOT}/crates/ffi/${crate_dir}/Cargo.toml"
 
 if [ ! -f "$cargo_toml" ]; then
-  echo "error: $cargo_toml not found" >&2
+  log_error "$cargo_toml not found" >&2
   exit 1
 fi
 

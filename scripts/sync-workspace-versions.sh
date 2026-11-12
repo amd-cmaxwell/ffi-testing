@@ -8,6 +8,8 @@ set -euo pipefail
 # Bumps workspace dependency versions in the root Cargo.toml to match each
 # crate's own [package].version.
 
+. "$(dirname "$0")/log.sh"
+
 if [ $# -gt 0 ]; then
   tomls=()
   for mod in "$@"; do
@@ -28,7 +30,7 @@ for toml in "${tomls[@]}"; do
   ws_ver=$(echo "$ws_line" | sed 's/.*version = "\([^"]*\)".*/\1/')
 
   if [ "$crate_ver" != "$ws_ver" ]; then
-    echo "  ${crate_path}: ${ws_ver} -> ${crate_ver}"
+    log_notice "${crate_path}: ${ws_ver} -> ${crate_ver}"
     sed "s|\(path = \"${crate_path}\", version = \)\"${ws_ver}\"|\1\"${crate_ver}\"|" Cargo.toml > Cargo.toml.tmp && mv Cargo.toml.tmp Cargo.toml
     updated=true
   fi
@@ -37,5 +39,5 @@ done
 if $updated; then
   echo "updated"
 else
-  echo "  all workspace dependency versions already match"
+  log_success "all workspace dependency versions already match"
 fi

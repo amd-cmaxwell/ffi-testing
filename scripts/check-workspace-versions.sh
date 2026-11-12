@@ -8,6 +8,8 @@ set -euo pipefail
 # Exits non-zero if any workspace dependency version in the root Cargo.toml
 # does not match the crate's own [package].version.
 
+. "$(dirname "$0")/log.sh"
+
 if [ $# -gt 0 ]; then
   tomls=()
   for mod in "$@"; do
@@ -21,7 +23,7 @@ fi
 
 failed=false
 
-echo "::group::Check workspace dependency versions"
+log_group "Check workspace dependency versions"
 for toml in "${tomls[@]}"; do
   [ -f "$toml" ] || continue
   crate_path=$(dirname "$toml")
@@ -30,15 +32,15 @@ for toml in "${tomls[@]}"; do
   ws_ver=$(echo "$ws_line" | sed 's/.*version = "\([^"]*\)".*/\1/')
 
   if [ "$crate_ver" != "$ws_ver" ]; then
-    echo "::error file=Cargo.toml::Workspace dep version ${ws_ver} for ${crate_path} does not match crate version ${crate_ver}"
+    log_error --file Cargo.toml "Workspace dep version ${ws_ver} for ${crate_path} does not match crate version ${crate_ver}"
     failed=true
   else
-    echo "  ${crate_path} v${crate_ver} matches workspace dep"
+    log_success "${crate_path} v${crate_ver} matches workspace dep"
   fi
 done
-echo "::endgroup::"
+log_endgroup
 
 if $failed; then
-  echo "::error::Workspace dependency versions must match crate versions — run ./scripts/sync-workspace-versions.sh to fix"
+  log_error "Workspace dependency versions must match crate versions — run ./scripts/sync-workspace-versions.sh to fix"
   exit 1
 fi

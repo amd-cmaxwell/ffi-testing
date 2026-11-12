@@ -3,6 +3,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+. "$(dirname "$0")/log.sh"
+
 latest_tag_for() {
   git -C "$REPO_ROOT" tag --list "$1/v*" --sort=-v:refname | head -1
 }
@@ -79,7 +81,7 @@ done
 failed=false
 
 if [ ${#missing[@]} -gt 0 ]; then
-  echo "::warning::Library crates changed without corresponding FFI crate updates:"
+  log_warning "Library crates changed without corresponding FFI crate updates:"
   for name in "${missing[@]}"; do
     echo "  - crates/lib/$name/src/ changed but crates/ffi/$name/ was not modified"
   done
@@ -87,7 +89,7 @@ if [ ${#missing[@]} -gt 0 ]; then
 fi
 
 if [ ${#missing_ffi_src[@]} -gt 0 ]; then
-  echo "::error::Library crates have minor/major version bumps without FFI source changes:"
+  log_error "Library crates have minor/major version bumps without FFI source changes:"
   for entry in "${missing_ffi_src[@]}"; do
     echo "  - $entry — expected .rs changes in crates/ffi/$(echo "$entry" | cut -d' ' -f1)/src/"
   done

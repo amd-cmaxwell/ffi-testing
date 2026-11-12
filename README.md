@@ -42,12 +42,19 @@ crates/
     tools/           Build tooling (excluded from workspace)
 
 scripts/
+  log.sh                      Shared logging helpers (emoji + GH Actions annotations)
+  ffi-crate-name.sh           Resolve FFI crate name from Cargo.toml
   sync-ffi-versions.sh        Cascade lib version bumps to FFI crates
   check-ffi-coverage.sh       Verify FFI source changes for lib API changes
   check-ffi-versions.sh       Validate FFI versions >= lib versions
   sync-workspace-versions.sh  Sync root Cargo.toml workspace dep versions
   check-workspace-versions.sh Validate workspace dep versions match crates
   release-body.sh             Generate GitHub release notes with asset tables
+
+.githooks/
+  pre-commit               Version sync, FFI coverage, and bindings guard
+
+bindings/                  Auto-generated language bindings (committed on release)
 
 examples/
   py-demo/           Python smoke test
@@ -64,11 +71,28 @@ docs/                Design decisions and pitfall documentation
 make setup    # configures git hooks and installs build tools
 ```
 
-This sets up the `.githooks/` directory as the git hooks path. The pre-commit hook automatically:
-1. Syncs FFI crate versions when lib versions change (semver-aware cascading)
-2. Checks that lib crate source changes have corresponding FFI updates
-3. Syncs workspace dependency versions in the root `Cargo.toml`
-4. Validates FFI and workspace version alignment
+This sets up the `.githooks/` directory as the git hooks path and installs build tools.
+
+## Git hooks
+
+The `pre-commit` hook (see [`.githooks/README.md`](.githooks/README.md) for full details) runs automatically on every commit to keep versions and bindings consistent:
+
+| Step | Script | Description |
+|------|--------|-------------|
+| 1 | — | Rejects staged edits to auto-generated `bindings/` files |
+| 2 | `scripts/sync-ffi-versions.sh` | Cascades lib version bumps to FFI crates (semver-aware) |
+| 3 | `scripts/check-ffi-coverage.sh` | Verifies lib source changes have corresponding FFI updates |
+| 4 | `scripts/sync-workspace-versions.sh` | Syncs workspace dep versions in root `Cargo.toml` |
+| 5 | `scripts/check-ffi-versions.sh` | Validates FFI versions ≥ lib versions |
+| 6 | `scripts/check-workspace-versions.sh` | Validates workspace dep versions match crate versions |
+
+### Hook environment variables
+
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `SKIP_BINDINGS_CHECK` | _(unset)_ | Set to `1` to skip the bindings edit guard (step 1) |
+| `SKIP_FFI_COVERAGE` | _(unset)_ | Set to `1` to skip the FFI coverage check (step 3) |
+| `GITHUB_ACTIONS` | _(unset)_ | When set (automatic in CI), log messages are prefixed with `::error::` / `::warning::` / `::notice::` / `::debug::` workflow commands so they appear as annotations in the GitHub Actions UI. When unset, messages use emoji-only prefixes (❌ ⚠️ ℹ️ 🔍 ✅). |
 
 ### Repository variables
 
@@ -78,10 +102,9 @@ When creating a new project from this template, configure these as GitHub reposi
 |---|---|
 | `REPO_OWNER` | GitHub owner/org (used for package naming) |
 | `REPO_NAME` | Repository name |
-| `PKG_SUFFIX` | Package name suffix (e.g. `-ffi`) |
 | `NPM_SCOPE` | npm scope for JS packages (e.g. `@my-org`) |
 
-The Makefile resolves these dynamically from the git remote by default. Override `REPO_SLUG`, `REPO_OWNER`, `REPO_NAME`, `PKG_SUFFIX`, or `NPM_SCOPE` as needed.
+The Makefile resolves these dynamically from the git remote by default. Override `REPO_SLUG`, `REPO_OWNER`, `REPO_NAME`, `GIT_REPO`, or `NPM_SCOPE` as needed.
 
 ## Building bindings
 
@@ -90,6 +113,17 @@ make generate-python    # Build Python wheels for all FFI crates
 make generate-go        # Generate Go modules with CGO static libs
 make generate-js        # Build WASM + TS bindings and pack npm tarballs
 make generate-all       # All of the above
+make config             # Dump all resolved variables
+```
+
+### Makefile verbosity
+
+`LOG_LEVEL` controls output verbosity for all `make` targets:
+
+```bash
+make ...                # default (LOG_LEVEL=1): progress messages
+LOG_LEVEL=0 make ...    # quiet: errors only
+LOG_LEVEL=2 make ...    # debug: resolved variables, paths, commands
 ```
 
 ## Testing

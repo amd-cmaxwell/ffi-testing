@@ -5,7 +5,9 @@ set -euo pipefail
 # If no arguments are given, all crates under crates/ffi/ are checked.
 # FFI lib names use underscores (e.g. "core trig linear_algebra").
 
-echo "::group::FFI version alignment check"
+. "$(dirname "$0")/log.sh"
+
+log_group "FFI version alignment check"
 failed=false
 checked=0
 skipped=0
@@ -25,7 +27,7 @@ for ffi_toml in "${tomls[@]}"; do
   crate_dir=$(basename "$(dirname "$ffi_toml")")
   lib_toml="crates/lib/${crate_dir}/Cargo.toml"
   if [ ! -f "$lib_toml" ]; then
-    echo "::notice::Skipping crates/ffi/${crate_dir} — no corresponding lib crate"
+    log_notice "Skipping crates/ffi/${crate_dir} — no corresponding lib crate"
     skipped=$((skipped + 1))
     continue
   fi
@@ -36,16 +38,16 @@ for ffi_toml in "${tomls[@]}"; do
   if [ "$ffi_major" -lt "$lib_major" ] ||
      { [ "$ffi_major" -eq "$lib_major" ] && [ "$ffi_minor" -lt "$lib_minor" ]; } ||
      { [ "$ffi_major" -eq "$lib_major" ] && [ "$ffi_minor" -eq "$lib_minor" ] && [ "$ffi_patch" -lt "$lib_patch" ]; }; then
-    echo "::error file=${ffi_toml}::crates/ffi/${crate_dir} v${ffi_ver} is behind crates/lib/${crate_dir} v${lib_ver} — FFI version must be >= lib version"
+    log_error --file "${ffi_toml}" "crates/ffi/${crate_dir} v${ffi_ver} is behind crates/lib/${crate_dir} v${lib_ver} — FFI version must be >= lib version"
     failed=true
   else
-    echo "  crates/ffi/${crate_dir} v${ffi_ver} >= crates/lib/${crate_dir} v${lib_ver}"
+    log_success "crates/ffi/${crate_dir} v${ffi_ver} >= crates/lib/${crate_dir} v${lib_ver}"
   fi
   checked=$((checked + 1))
 done
-echo "::endgroup::"
-echo "::notice::Checked ${checked} FFI/lib pairs, skipped ${skipped} FFI-only crates"
+log_endgroup
+log_notice "Checked ${checked} FFI/lib pairs, skipped ${skipped} FFI-only crates"
 if $failed; then
-  echo "::error::One or more FFI crate versions are behind their lib crates"
+  log_error "One or more FFI crate versions are behind their lib crates"
   exit 1
 fi
