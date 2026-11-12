@@ -11,6 +11,18 @@ assets=("$@")
 
 repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
 
+# Normalize PKG_PREFIX: default to REPO_NAME, ensure trailing hyphen
+PKG_PREFIX="${PKG_PREFIX:-${REPO_NAME:-}}"
+if [ -n "$PKG_PREFIX" ]; then
+  PKG_PREFIX="$(printf '%s' "$PKG_PREFIX" | sed 's/-*$//')-"
+fi
+
+# Normalize NPM_PKG_PREFIX: default to PKG_PREFIX, then REPO_NAME
+NPM_PKG_PREFIX="${NPM_PKG_PREFIX:-${PKG_PREFIX:-${REPO_NAME:-}}}"
+if [ -n "$NPM_PKG_PREFIX" ]; then
+  NPM_PKG_PREFIX="$(printf '%s' "$NPM_PKG_PREFIX" | sed 's/-*$//')-"
+fi
+
 if [ ${#assets[@]} -eq 0 ] && [ -z "${BINDINGS_COMMIT:-}" ]; then
   exit 0
 fi
@@ -23,7 +35,7 @@ case "$tag" in
     if [ -f "crates/lib/${lib_crate}/Cargo.toml" ]; then
       lib_ver=$(grep '^version' "crates/lib/${lib_crate}/Cargo.toml" | head -1 | sed 's/.*"\(.*\)"/\1/')
       lib_tag="crates/${lib_crate}/v${lib_ver}"
-      lib_release_link="[${REPO_NAME:-}-${lib_crate} v${lib_ver}](${repo_url}/releases/tag/${lib_tag})"
+      lib_release_link="[${PKG_PREFIX}${lib_crate} v${lib_ver}](${repo_url}/releases/tag/${lib_tag})"
       echo "> **FFI-only release** — this updates the foreign function interface bindings for \`${lib_crate}\`, not the core Rust library. The underlying lib crate release is ${lib_release_link}."
     else
       echo "> **FFI-only release** — this updates the \`${lib_crate}\` FFI crate. There is no corresponding core Rust library crate."
@@ -44,11 +56,11 @@ ffi_tag="ffi/${crate_dir}/${version}"
 go_pkg="${repo_us}_${crate_us}${suffix_us}"
 go_tag="bindings/go/${go_pkg}/${version}"
 
-py_pkg="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
+py_pkg="${PKG_PREFIX}${crate_dir}${PKG_SUFFIX:-}"
 npm_scope="${NPM_SCOPE:-@${REPO_OWNER:-}}"
-js_pkg="${npm_scope}/${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
+js_pkg="${npm_scope}/${NPM_PKG_PREFIX}${crate_dir}${PKG_SUFFIX:-}"
 
-ffi_crate_name="${REPO_NAME}-${crate_dir}${PKG_SUFFIX:-}"
+ffi_crate_name="${PKG_PREFIX}${crate_dir}${PKG_SUFFIX:-}"
 ffi_crate_link="[${ffi_crate_name} @ ${version}](${repo_url}/tree/${ffi_tag}/crates/ffi/${crate_dir})"
 
 if [ -n "${BINDINGS_COMMIT:-}" ]; then

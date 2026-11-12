@@ -52,6 +52,7 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
+      pkg-prefix: ${{ vars.PKG_PREFIX }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
 
@@ -62,6 +63,7 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
+      pkg-prefix: ${{ vars.PKG_PREFIX }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
 
@@ -72,7 +74,9 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
+      pkg-prefix: ${{ vars.PKG_PREFIX }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
+      npm-pkg-prefix: ${{ vars.NPM_PKG_PREFIX }}
       upload-artifacts: true
 
   test-python-bindings:

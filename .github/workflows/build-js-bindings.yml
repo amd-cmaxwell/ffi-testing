@@ -20,6 +20,14 @@ on:
         required: false
         type: string
         default: generate-js
+      pkg-prefix:
+        required: false
+        type: string
+        default: ''
+      npm-pkg-prefix:
+        required: false
+        type: string
+        default: ''
       ffi-libs:
         required: false
         type: string
@@ -33,6 +41,9 @@ jobs:
     name: JS/TS/WASM bindings
     runs-on: ubuntu-latest
     steps:
+      - name: Set LOG_LEVEL for debug runs
+        run: echo "LOG_LEVEL=${{ runner.debug == '1' && '2' || '1' }}" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -69,7 +80,9 @@ jobs:
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
+          PKG_PREFIX: ${{ inputs.pkg-prefix }}
           PKG_SUFFIX: ${{ inputs.pkg-suffix }}
+          NPM_PKG_PREFIX: ${{ inputs.npm-pkg-prefix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
 
       - name: List generated artifacts

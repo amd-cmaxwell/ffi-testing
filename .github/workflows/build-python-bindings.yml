@@ -16,6 +16,10 @@ on:
         required: false
         type: boolean
         default: false
+      pkg-prefix:
+        required: false
+        type: string
+        default: ''
       ffi-libs:
         required: false
         type: string
@@ -43,6 +47,9 @@ jobs:
             cgo_os: windows
             cgo_arch: amd64
     steps:
+      - name: Set LOG_LEVEL for debug runs
+        run: echo "LOG_LEVEL=${{ runner.debug == '1' && '2' || '1' }}" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
@@ -76,6 +83,7 @@ jobs:
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
+          PKG_PREFIX: ${{ inputs.pkg-prefix }}
           PKG_SUFFIX: ${{ inputs.pkg-suffix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
 

@@ -19,8 +19,10 @@ env:
   CARGO_TERM_COLOR: always
   REPO_OWNER: ${{ vars.REPO_OWNER }}
   REPO_NAME: ${{ vars.REPO_NAME }}
+  PKG_PREFIX: ${{ vars.PKG_PREFIX }}
   PKG_SUFFIX: ${{ vars.PKG_SUFFIX }}
   NPM_SCOPE: ${{ vars.NPM_SCOPE }}
+  NPM_PKG_PREFIX: ${{ vars.NPM_PKG_PREFIX }}
 
 jobs:
   ci-gate:
@@ -254,6 +256,7 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
+      pkg-prefix: ${{ vars.PKG_PREFIX }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
@@ -268,6 +271,7 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
+      pkg-prefix: ${{ vars.PKG_PREFIX }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
@@ -282,7 +286,9 @@ jobs:
     with:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
+      pkg-prefix: ${{ vars.PKG_PREFIX }}
       pkg-suffix: ${{ vars.PKG_SUFFIX }}
+      npm-pkg-prefix: ${{ vars.NPM_PKG_PREFIX }}
       upload-artifacts: true
       make-target: generate-js
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
@@ -307,11 +313,27 @@ jobs:
           suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
           npm_scope="${NPM_SCOPE:-@${REPO_OWNER}}"
           ffi_modules="${{ needs.detect-changes.outputs.ffi-libs }}"
+
+          # Normalize PKG_PREFIX: default to REPO_NAME, ensure trailing hyphen
+          pkg_prefix="${PKG_PREFIX:-${REPO_NAME}}"
+          if [ -n "$pkg_prefix" ]; then
+            pkg_prefix="$(printf '%s' "$pkg_prefix" | sed 's/-*$//')-"
+          fi
+
+          # Normalize NPM_PKG_PREFIX: default to PKG_PREFIX, then REPO_NAME
+          npm_pkg_prefix="${NPM_PKG_PREFIX:-${pkg_prefix:-${REPO_NAME}}}"
+          if [ -n "$npm_pkg_prefix" ]; then
+            npm_pkg_prefix="$(printf '%s' "$npm_pkg_prefix" | sed 's/-*$//')-"
+          fi
+
           echo "REPO_NAME_US=${repo_us}" >> "$GITHUB_ENV"
           echo "PKG_SUFFIX_US=${suffix_us}" >> "$GITHUB_ENV"
           echo "NPM_SCOPE=${npm_scope}" >> "$GITHUB_ENV"
+          echo "PKG_PREFIX=${pkg_prefix}" >> "$GITHUB_ENV"
+          echo "NPM_PKG_PREFIX=${npm_pkg_prefix}" >> "$GITHUB_ENV"
           echo "FFI_MODULES=${ffi_modules}" >> "$GITHUB_ENV"
           echo "::notice::REPO_NAME_US=${repo_us} PKG_SUFFIX_US=${suffix_us} NPM_SCOPE=${npm_scope}"
+          echo "::notice::PKG_PREFIX=${pkg_prefix} NPM_PKG_PREFIX=${npm_pkg_prefix}"
           echo "::notice::FFI_MODULES=${ffi_modules}"
 
       - name: Download Go binding artifacts
@@ -447,7 +469,14 @@ jobs:
           set -euo pipefail
           repo_us=$(echo "$REPO_NAME" | tr '-' '_')
           suffix_us=$(echo "$PKG_SUFFIX" | tr '-' '_')
-          echo "::notice::Artifact matching patterns — wheels: *\${repo_us}_\${crate_us}\${suffix_us}* | tarballs: *\${REPO_NAME}-\${crate_dir}\${PKG_SUFFIX}*"
+
+          # Normalize PKG_PREFIX: default to REPO_NAME, ensure trailing hyphen
+          pkg_prefix="${PKG_PREFIX:-${REPO_NAME}}"
+          if [ -n "$pkg_prefix" ]; then
+            pkg_prefix="$(printf '%s' "$pkg_prefix" | sed 's/-*$//')-"
+          fi
+
+          echo "::notice::Artifact matching patterns — wheels: *\${repo_us}_\${crate_us}\${suffix_us}* | tarballs: *\${pkg_prefix}\${crate_dir}\${PKG_SUFFIX}*"
           echo "::notice::Available wheels:"
           ls -1 wheels/ 2>/dev/null || echo "::warning::wheels/ directory not found"
           echo "::notice::Available npm tarballs:"
@@ -467,7 +496,7 @@ jobs:
 
             crate_us=$(echo "$crate_dir" | tr '-' '_')
             wheel_pattern="${repo_us}_${crate_us}${suffix_us}"
-            tarball_pattern="${REPO_NAME}-${crate_dir}${PKG_SUFFIX}"
+            tarball_pattern="${pkg_prefix}${crate_dir}${PKG_SUFFIX}"
             assets=()
             while IFS= read -r f; do
               [ -n "$f" ] && assets+=("$f")
@@ -482,8 +511,8 @@ jobs:
             echo "::notice::Releasing ${tag} with ${#assets[@]} artifact(s): ${assets[*]:-<none>}"
 
             case "$crate_path" in
-              crates/ffi/*) title="${REPO_NAME}-${crate_dir}-ffi v${cur_ver}" ;;
-              *)            title="${REPO_NAME}-${crate_dir} v${cur_ver}" ;;
+              crates/ffi/*) title="${pkg_prefix}${crate_dir}${PKG_SUFFIX} v${cur_ver}" ;;
+              *)            title="${pkg_prefix}${crate_dir} v${cur_ver}" ;;
             esac
 
             echo "::group::Release ${tag}"
