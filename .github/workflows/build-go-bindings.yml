@@ -27,12 +27,13 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  LOG_LEVEL: ${{ runner.debug == '1' && '2' || '1' }}
 
 jobs:
   build-go-bindings:
     name: Go bindings (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    env:
+      LOG_LEVEL: ${{ runner.debug == '1' && '2' || '1' }}
     strategy:
       fail-fast: false
       matrix:

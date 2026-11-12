@@ -35,12 +35,13 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  LOG_LEVEL: ${{ runner.debug == '1' && '2' || '1' }}
 
 jobs:
   build-js-bindings:
     name: JS/TS/WASM bindings
     runs-on: ubuntu-latest
+    env:
+      LOG_LEVEL: ${{ runner.debug == '1' && '2' || '1' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
