@@ -75,16 +75,16 @@ This sets up the `.githooks/` directory as the git hooks path and installs build
 
 ## Git hooks
 
-The `pre-commit` hook (see [`.githooks/README.md`](.githooks/README.md) for full details) runs automatically on every commit to keep versions and bindings consistent:
+The `pre-commit` hook (see [`.githooks/README.md`](.githooks/README.md) for full details) runs automatically on every commit to keep versions and bindings consistent. All checks operate exclusively on staged files — unstaged working-tree changes are ignored. `git status` is printed automatically after any step stages new files or when the hook fails.
 
 | Step | Script | Description |
 |------|--------|-------------|
 | 1 | — | Rejects staged edits to auto-generated `bindings/` files |
-| 2 | `scripts/sync-ffi-versions.sh` | Cascades lib version bumps to FFI crates (semver-aware) |
-| 3 | `scripts/check-ffi-coverage.sh` | Verifies lib source changes have corresponding FFI updates |
-| 4 | `scripts/sync-workspace-versions.sh` | Syncs workspace dep versions in root `Cargo.toml` |
-| 5 | `scripts/check-ffi-versions.sh` | Validates FFI versions ≥ lib versions |
-| 6 | `scripts/check-workspace-versions.sh` | Validates workspace dep versions match crate versions |
+| 2 | `scripts/sync-ffi-versions.sh --cached` | Cascades staged lib version bumps to FFI crates (semver-aware) |
+| 3 | `scripts/check-ffi-coverage.sh --cached` | Verifies staged lib source changes have corresponding FFI updates |
+| 4 | `scripts/sync-workspace-versions.sh --cached` | Syncs workspace dep versions in root `Cargo.toml` for staged crates |
+| 5 | `scripts/check-ffi-versions.sh --cached` | Validates staged FFI versions ≥ lib versions |
+| 6 | `scripts/check-workspace-versions.sh --cached` | Validates staged workspace dep versions match crate versions |
 
 ### Hook environment variables
 
