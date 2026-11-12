@@ -34,7 +34,8 @@
 # REPO_SLUG    : owner/name pair; derived from the git remote URL
 # REPO_OWNER   : GitHub username or org; derived from REPO_SLUG
 # REPO_NAME    : kebab-case project name; derived from REPO_SLUG, then dir name
-# PKG_PREFIX   : kebab-case prefix for generated packages (defaults to REPO_NAME)
+# PKG_PREFIX   : kebab-case prefix for generated packages; user-settable,
+#                defaults to REPO_NAME when REPO_NAME is explicitly provided
 # PKG_SUFFIX   : appended to every generated package name (e.g. "-ffi")
 # *_US variants: underscore-normalized forms for contexts where kebab-case is
 #                invalid (Rust crate names, Go package dirs, WASM filenames)
@@ -52,7 +53,21 @@ REPO_NAME_US   := $(subst -,_,$(REPO_NAME))
 REPO_SLUG      := $(REPO_OWNER)/$(REPO_NAME)
 PKG_SUFFIX     ?=
 PKG_SUFFIX_US  := $(subst -,_,$(PKG_SUFFIX))
-PKG_PREFIX     := $(REPO_NAME)
+# Helper: normalize a value to end with exactly one hyphen (empty → empty)
+_strip_hyphens = $(patsubst %-,%,$(patsubst %-,%,$(patsubst %-,%,$(1))))
+_ensure_hyphen = $(if $(strip $(1)),$(call _strip_hyphens,$(strip $(1)))-,)
+
+# True (non-empty) when the user explicitly set a variable via the command line
+# or environment, as opposed to it being derived from the Makefile defaults.
+_user_provided = $(filter command line environment,$(origin $(1)))
+
+PKG_PREFIX     ?=
+ifeq ($(strip $(PKG_PREFIX)),)
+  ifneq ($(call _user_provided,REPO_NAME),)
+    PKG_PREFIX := $(REPO_NAME)
+  endif
+endif
+PKG_PREFIX     := $(call _ensure_hyphen,$(PKG_PREFIX))
 
 _check-repo-owner:
 	@test -n "$(REPO_OWNER)" || { echo "error: REPO_OWNER could not be resolved — configure a git remote, or set REPO_OWNER explicitly"; exit 1; }
@@ -102,9 +117,15 @@ CGO_LDFLAGS_EXTRA  := $(CGO_LDFLAGS_$(CGO_OS))
 
 # ── npm / JS configuration ──────────────────────────────────────────────────
 # NPM_SCOPE      : npm org scope (defaults to @REPO_OWNER; override for orgs)
-# NPM_PKG_PREFIX : kebab-case prefix within the scope (defaults to PKG_PREFIX)
+# NPM_PKG_PREFIX : kebab-case prefix within the scope; user-settable,
+#                  defaults to PKG_PREFIX, then REPO_NAME
 NPM_SCOPE       ?= @$(REPO_OWNER)
-NPM_PKG_PREFIX  ?= $(PKG_PREFIX)
+NPM_PKG_PREFIX  ?=
+ifeq ($(strip $(NPM_PKG_PREFIX)),)
+  NPM_PKG_PREFIX := $(or $(strip $(PKG_PREFIX)),$(REPO_NAME))
+endif
+NPM_PKG_PREFIX  := $(call _ensure_hyphen,$(NPM_PKG_PREFIX))
+NPM_ROOT_PKG_NAME := $(patsubst %-,%,$(NPM_PKG_PREFIX))
 
 # ── Tooling paths ────────────────────────────────────────────────────────────
 # Local installs of UniFFI bindgen tools, kept in .tools/ to avoid polluting
@@ -193,13 +214,13 @@ build-tools-wasm:
 
 # ── Python bindings ─────────────────────────────────────────────────────────
 # Generates a maturin-based Python project per FFI crate, then builds wheels
-# into $(PY_WHEELS_DIR).  Package name pattern: $(PKG_PREFIX)-<crate>$(PKG_SUFFIX)
+# into $(PY_WHEELS_DIR).  Package name pattern: $(PKG_PREFIX)<crate>$(PKG_SUFFIX)
 
 generate-python: _check-repo-owner python-dependencies build-tools-py
 	@mkdir -p $(PY_WHEELS_DIR)
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
-		pkg_name=$(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
+		pkg_name=$(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX); \
 		manifest_path=../../../crates/ffi/$$crate_dir/Cargo.toml; \
 		proj_dir=$(PY_BINDINGS_DIR)/$$pkg_name; \
 		mkdir -p $$proj_dir; \
@@ -276,25 +297,25 @@ install-go: generate-go
 # ── WASM / TypeScript bindings ───────────────────────────────────────────────
 # Builds each FFI crate to wasm32-unknown-unknown, then runs uniffi-bindgen-
 # react-native to produce TypeScript sources + .wasm blobs.
-# npm package pattern: $(NPM_SCOPE)/$(NPM_PKG_PREFIX)-<crate>$(PKG_SUFFIX)
+# npm package pattern: $(NPM_SCOPE)/$(NPM_PKG_PREFIX)<crate>$(PKG_SUFFIX)
 
 generate-wasm-ts: _check-repo-owner build-tools-wasm
 	@mkdir -p $(JS_BINDINGS_DIR)
 	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
 		$(CURDIR)/templates/js/pnpm-workspace.yaml > $(JS_BINDINGS_DIR)/pnpm-workspace.yaml
 	@sed -e "s|NPM_SCOPE|$(NPM_SCOPE)|g" \
-		-e "s|ROOT_PKG_NAME|$(NPM_PKG_PREFIX)|g" \
+		-e "s|ROOT_PKG_NAME|$(NPM_ROOT_PKG_NAME)|g" \
 		$(CURDIR)/templates/js/root-package.json > $(JS_BINDINGS_DIR)/package.json
 	@for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
 		pkg=$(REPO_NAME_US)_$${ffi_lib}$(PKG_SUFFIX_US); \
-		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX); \
+		npm_pkg=$(NPM_SCOPE)/$(NPM_PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX); \
 		pkg_dir=$(JS_BINDINGS_DIR)/$${npm_pkg}; \
 		mkdir -p $$pkg_dir/src; \
 		echo "  building wasm for $$pkg"; \
 		RUSTFLAGS="-C link-arg=--export-table -C link-arg=--growable-table" \
 		cargo build --release --target wasm32-unknown-unknown \
-			-p $(PKG_PREFIX)-$${crate_dir}$(PKG_SUFFIX) --features wasm; \
+			-p $(PKG_PREFIX)$${crate_dir}$(PKG_SUFFIX) --features wasm; \
 		echo "  generating wasm/ts bindings for $$ffi_lib"; \
 		$(UNIFFI_BINDGEN_RN) \
 			generate wasm2 bindings \

@@ -20,6 +20,14 @@ on:
         required: false
         type: string
         default: generate-js
+      pkg-prefix:
+        required: false
+        type: string
+        default: ''
+      npm-pkg-prefix:
+        required: false
+        type: string
+        default: ''
       ffi-libs:
         required: false
         type: string
@@ -69,7 +77,9 @@ jobs:
         env:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
+          PKG_PREFIX: ${{ inputs.pkg-prefix }}
           PKG_SUFFIX: ${{ inputs.pkg-suffix }}
+          NPM_PKG_PREFIX: ${{ inputs.npm-pkg-prefix }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
 
       - name: List generated artifacts
