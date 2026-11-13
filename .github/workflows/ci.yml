@@ -9,6 +9,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  NODE_VERSION: ${{ vars.NODE_VERSION || '20' }}
+  GO_VERSION: ${{ vars.GO_VERSION || 'stable' }}
 
 jobs:
   check-ffi-coverage:
@@ -53,6 +55,7 @@ jobs:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
       upload-artifacts: true
+      python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
 
   build-go-bindings:
     name: Build Go Bindings
@@ -62,6 +65,8 @@ jobs:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
       upload-artifacts: true
+      go-version: ${{ vars.GO_VERSION || '1.21' }}
+      python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
 
   build-js-bindings:
     name: Build JS Bindings
@@ -71,6 +76,9 @@ jobs:
       repo-owner: ${{ vars.REPO_OWNER }}
       repo-name: ${{ vars.REPO_NAME }}
       upload-artifacts: true
+      node-version: ${{ vars.NODE_VERSION || '20' }}
+      pnpm-version: ${{ vars.PNPM_VERSION || '9' }}
+      wasm-target: ${{ vars.WASM_TARGET || 'wasm32-unknown-unknown' }}
 
   test-python-bindings:
     name: Test Python bindings
@@ -99,7 +107,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: stable
+          go-version: ${{ env.GO_VERSION }}
 
       - uses: actions/download-artifact@v4
         with:
@@ -125,7 +133,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - uses: actions/download-artifact@v4
         with:

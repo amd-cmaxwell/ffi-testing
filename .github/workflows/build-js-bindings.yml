@@ -21,6 +21,18 @@ on:
         required: false
         type: string
         default: "auto"
+      node-version:
+        required: false
+        type: string
+        default: "20"
+      pnpm-version:
+        required: false
+        type: string
+        default: "9"
+      wasm-target:
+        required: false
+        type: string
+        default: "wasm32-unknown-unknown"
 
 env:
   CARGO_TERM_COLOR: always
@@ -36,14 +48,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: ${{ inputs.wasm-target }}
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: ${{ inputs.pnpm-version }}
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ inputs.node-version }}
 
       - name: Cache uniffi-bindgen-react-native
         id: cache-bindgen
