@@ -255,6 +255,7 @@ jobs:
       repo-name: ${{ vars.REPO_NAME }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
+      python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
 
   build-go-bindings:
     name: Build Go bindings
@@ -268,6 +269,8 @@ jobs:
       repo-name: ${{ vars.REPO_NAME }}
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
+      go-version: ${{ vars.GO_VERSION || '1.21' }}
+      python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
 
   build-js-bindings:
     name: Build JS bindings
@@ -282,6 +285,9 @@ jobs:
       upload-artifacts: true
       make-target: generate-js
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
+      node-version: ${{ vars.NODE_VERSION || '20' }}
+      pnpm-version: ${{ vars.PNPM_VERSION || '9' }}
+      wasm-target: ${{ vars.WASM_TARGET || 'wasm32-unknown-unknown' }}
 
   publish-bindings:
     name: Publish bindings

@@ -98,15 +98,22 @@ The `pre-commit` hook (see [`.githooks/README.md`](.githooks/README.md) for full
 
 When creating a new project from this template, configure these as GitHub repository variables (Settings > Secrets and variables > Actions > Variables):
 
-| Variable | Description |
-|---|---|
-| `REPO_OWNER` | GitHub owner/org (used for package naming) |
-| `REPO_NAME` | Repository name |
-| `NPM_SCOPE` | npm scope for JS packages (e.g. `@my-org`) |
+| Variable | Required | Description |
+|---|---|---|
+| `REPO_OWNER` | yes | GitHub owner/org (used for package naming) |
+| `REPO_NAME` | yes | Repository name |
+| `NPM_SCOPE` | no | npm scope for JS packages (defaults to `@REPO_OWNER`) |
+| `NODE_VERSION` | no | Node.js version (default: `20`) |
+| `GO_VERSION` | no | Go version (default: `stable` for CI tests, `1.21` for builds) |
+| `PYTHON_VERSION` | no | Python version (default: `3.12`) |
+| `PNPM_VERSION` | no | pnpm version (default: `9`) |
+| `WASM_TARGET` | no | Rust WASM compilation target (default: `wasm32-unknown-unknown`) |
 
-The Makefile resolves these dynamically from the git remote by default. Override `REPO_SLUG`, `REPO_OWNER`, `REPO_NAME`, `GIT_REPO`, or `NPM_SCOPE` as needed.
+The Makefile resolves `REPO_OWNER` and `REPO_NAME` dynamically from the git remote by default. See [`.github/workflows/README.md`](.github/workflows/README.md) for the full configurable variables reference.
 
 ## Building bindings
+
+All required toolchains (Rust, Python/uv, Go, Node.js/pnpm) are automatically bootstrapped when you run a `make` target — no manual installation needed. Override versions via environment variables (run `make config` to see all resolved values):
 
 ```bash
 make generate-python    # Build Python wheels for all FFI crates
@@ -115,6 +122,20 @@ make generate-js        # Build WASM + TS bindings and pack npm tarballs
 make generate-all       # All of the above
 make config             # Dump all resolved variables
 ```
+
+### Makefile version variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `RUST_VERSION` | `stable` | Rust toolchain (channel, version, or nightly) |
+| `GO_VERSION` | `1.21.0` | Go version |
+| `NODE_VERSION` | `20` | Node.js version |
+| `NVM_VERSION` | `v0.40.3` | nvm installer version |
+| `PYTHON_VERSION` | `3.12` | Python version (installed via uv) |
+| `PNPM_VERSION` | `latest` | pnpm version |
+| `UV_VERSION` | _(latest)_ | uv version (empty = latest) |
+| `MATURIN_VERSION` | _(latest)_ | maturin version (empty = latest) |
+| `WASM_TARGET` | `wasm32-unknown-unknown` | Rust WASM compilation target |
 
 ### Makefile verbosity
 
@@ -145,6 +166,8 @@ cd examples/web-demo && npx vite
 ```
 
 ## CI / CD
+
+For a comprehensive guide to the workflow architecture, configurable variables, artifact flow, release pipeline, and validation scripts, see [`.github/workflows/README.md`](.github/workflows/README.md).
 
 ### CI (`ci.yml`)
 
@@ -181,11 +204,14 @@ FFI-only releases (no lib change) are distinguished with a `-ffi` title suffix a
 
 ## Dependencies
 
-- Rust toolchain (for building FFI crates)
-- [maturin](https://www.maturin.rs/) (for Python packaging)
-- [uniffi-bindgen-go](https://github.com/NordSecurity/uniffi-bindgen-go) (for Go bindings)
-- Node.js >= 20, pnpm (for JS/WASM bindings)
-- Python >= 3.8, Go >= 1.21
+All dependencies are bootstrapped automatically by the Makefile when needed. If you prefer to install them manually:
+
+- **Rust** — installed via [rustup](https://rustup.rs/) (`install-rust` target); WASM target added on demand (`ensure-wasm-target`)
+- **Python** — installed via [uv](https://docs.astral.sh/uv/) (`install-python-toolchain` target)
+- **maturin** — installed via `uv tool install` (`python-dependencies` target)
+- **Go** — installed from [go.dev](https://go.dev/dl/) (`install-go-toolchain` target)
+- **Node.js** — installed via [nvm](https://github.com/nvm-sh/nvm) (`install-node` target)
+- **pnpm** — installed via corepack (`js-dependencies` target)
 
 ## Next steps
 

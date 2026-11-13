@@ -19,6 +19,18 @@ log_info()  { [ $(_LOG_LEVEL) -ge 1 ] && echo "  $$*" || :; }; \
 log_debug() { [ $(_LOG_LEVEL) -ge 2 ] && echo "  [debug] $$*" || :; };
 endef
 
+# ── Tool / runtime versions ──────────────────────────────────────────────────
+# Override these when forking the template for a downstream project.
+GO_VERSION     ?= 1.21.0
+NODE_VERSION   ?= 20
+NVM_VERSION    ?= v0.40.3
+PNPM_VERSION   ?= latest
+PYTHON_VERSION ?= 3.12
+RUST_VERSION   ?= stable
+UV_VERSION     ?=
+MATURIN_VERSION ?=
+WASM_TARGET    ?= wasm32-unknown-unknown
+
 # ──────────────────────────────────────────────────────────────────────────────
 # UniFFI Multi-Language Bindings Makefile
 #
@@ -43,7 +55,7 @@ endef
 # ──────────────────────────────────────────────────────────────────────────────
 
 .PHONY: config setup build test \
-       python-dependencies js-dependencies install-node \
+       python-dependencies js-dependencies install-rust ensure-wasm-target install-python-toolchain install-node install-go-toolchain \
        build-tools-py build-tools-go build-tools-wasm \
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
@@ -144,20 +156,29 @@ config:
 	@echo "  CGO_OS            = $(CGO_OS)"
 	@echo "  FFI_LIBS          = $(FFI_LIBS)"
 	@echo "  GIT_REPO          = $(GIT_REPO)"
+	@echo "  GO_VERSION        = $(GO_VERSION)"
 	@echo "  GO_BINDINGS_DIR   = $(GO_BINDINGS_DIR)"
 	@echo "  GO_MODULE_BASE    = $(GO_MODULE_BASE)"
 	@echo "  JS_BINDINGS_DIR   = $(JS_BINDINGS_DIR)"
 	@echo "  LIB_SUFFIX        = $(LIB_SUFFIX)"
 	@echo "  LOG_LEVEL         = $(_LOG_LEVEL)"
+	@echo "  MATURIN_VERSION   = $(or $(MATURIN_VERSION),(latest))"
+	@echo "  NODE_VERSION      = $(NODE_VERSION)"
+	@echo "  NVM_VERSION       = $(NVM_VERSION)"
 	@echo "  NPM_ROOT_PKG_NAME = $(NPM_ROOT_PKG_NAME)"
 	@echo "  NPM_SCOPE         = $(NPM_SCOPE)"
 	@echo "  NPM_TARBALLS_DIR  = $(NPM_TARBALLS_DIR)"
+	@echo "  PNPM_VERSION      = $(PNPM_VERSION)"
+	@echo "  PYTHON_VERSION    = $(PYTHON_VERSION)"
 	@echo "  PY_BINDINGS_DIR   = $(PY_BINDINGS_DIR)"
 	@echo "  PY_WHEELS_DIR     = $(PY_WHEELS_DIR)"
 	@echo "  REPO_NAME         = $(REPO_NAME)"
+	@echo "  RUST_VERSION      = $(RUST_VERSION)"
 	@echo "  REPO_OWNER        = $(REPO_OWNER)"
 	@echo "  REPO_SLUG         = $(REPO_SLUG)"
 	@echo "  TOOLS_DIR         = $(TOOLS_DIR)"
+	@echo "  UV_VERSION        = $(or $(UV_VERSION),(latest))"
+	@echo "  WASM_TARGET       = $(WASM_TARGET)"
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 
@@ -167,29 +188,59 @@ setup:
 
 # ── Core build targets ───────────────────────────────────────────────────────
 
-build:
+build: install-rust
 	$(call _log_debug,cargo build --release)
 	@cargo build --release
 
-test:
+test: install-rust
 	$(call _log_debug,cargo test --workspace)
 	@cargo test --workspace
 
 # ── Dependency bootstrapping ─────────────────────────────────────────────────
 # These targets are no-ops when the required tools are already installed.
 
-# Ensures uv and maturin are available
-python-dependencies:
+# Ensures Rust toolchain is available (installs via rustup if needed)
+install-rust:
+	@$(_shell_log_helpers) \
+	command -v rustup >/dev/null 2>&1 || { \
+		log_info "rustup not found, installing"; \
+		log_debug "curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $(RUST_VERSION)"; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $(RUST_VERSION); \
+		. "$$HOME/.cargo/env"; \
+		log_info "installed $$(rustc --version)"; \
+	}
+
+# Ensures the WASM compilation target is installed
+ensure-wasm-target: install-rust
+	@$(_shell_log_helpers) \
+	rustup target list --installed | grep -q "$(WASM_TARGET)" || { \
+		log_info "adding rustup target $(WASM_TARGET)"; \
+		log_debug "rustup target add $(WASM_TARGET)"; \
+		rustup target add $(WASM_TARGET); \
+	}
+
+# Ensures Python is available (installs via uv if needed)
+install-python-toolchain:
 	@$(_shell_log_helpers) \
 	command -v uv >/dev/null 2>&1 || { \
 		log_info "uv not found, installing"; \
-		log_debug "curl -LsSf https://astral.sh/uv/install.sh | sh"; \
-		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+		uv_url="https://astral.sh/uv/$(if $(UV_VERSION),$(UV_VERSION)/)install.sh"; \
+		log_debug "curl -LsSf $$uv_url | sh"; \
+		curl -LsSf "$$uv_url" | sh; \
 	}; \
+	command -v python3 >/dev/null 2>&1 || { \
+		log_info "python not found, installing $(PYTHON_VERSION) via uv"; \
+		log_debug "uv python install $(PYTHON_VERSION)"; \
+		uv python install $(PYTHON_VERSION); \
+	}
+
+# Ensures maturin is available (uv is guaranteed by install-python-toolchain)
+python-dependencies: install-python-toolchain
+	@$(_shell_log_helpers) \
 	command -v maturin >/dev/null 2>&1 || { \
 		log_info "maturin not found, installing via uv"; \
-		log_debug "uv tool install maturin"; \
-		uv tool install maturin; \
+		log_debug "uv tool install maturin$(if $(MATURIN_VERSION),==$(MATURIN_VERSION))"; \
+		uv tool install maturin$(if $(MATURIN_VERSION),==$(MATURIN_VERSION)); \
 	}
 
 # Ensures Node.js is available (installs via nvm if needed)
@@ -200,10 +251,21 @@ install-node:
 		export NVM_DIR="$${HOME}/.nvm"; \
 		if [ ! -s "$$NVM_DIR/nvm.sh" ]; then \
 			echo "  nvm not found, installing"; \
-			curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash; \
+			curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/$(NVM_VERSION)/install.sh | bash; \
 		fi; \
-		log_debug ". \$$NVM_DIR/nvm.sh && nvm install 20"; \
-		. "$$NVM_DIR/nvm.sh" && nvm install 20; \
+		log_debug ". \$$NVM_DIR/nvm.sh && nvm install $(NODE_VERSION)"; \
+		. "$$NVM_DIR/nvm.sh" && nvm install $(NODE_VERSION); \
+	}
+
+# Ensures Go is available (installs via go.dev installer if needed)
+install-go-toolchain:
+	@$(_shell_log_helpers) \
+	command -v go >/dev/null 2>&1 || { \
+		log_info "go not found, installing $(GO_VERSION)"; \
+		log_debug "curl -LsSf https://go.dev/dl/go$(GO_VERSION).$$(uname -s | tr A-Z a-z)-$$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz | tar -C /usr/local -xzf -"; \
+		curl -LsSf "https://go.dev/dl/go$(GO_VERSION).$$(uname -s | tr A-Z a-z)-$$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | sudo tar -C /usr/local -xzf -; \
+		export PATH="/usr/local/go/bin:$$PATH"; \
+		echo "  installed $$(go version)"; \
 	}
 
 # Ensures pnpm is available (installs via corepack if needed)
@@ -211,8 +273,8 @@ js-dependencies: install-node
 	@$(_shell_log_helpers) \
 	command -v pnpm >/dev/null 2>&1 || { \
 		echo "  pnpm not found, installing via corepack"; \
-		log_debug "corepack enable && corepack prepare pnpm@latest --activate"; \
-		corepack enable && corepack prepare pnpm@latest --activate; \
+		log_debug "corepack enable && corepack prepare pnpm@$(PNPM_VERSION) --activate"; \
+		corepack enable && corepack prepare pnpm@$(PNPM_VERSION) --activate; \
 	}
 
 # ── UniFFI bindgen tool builds ──────────────────────────────────────────────
@@ -317,7 +379,7 @@ stamp-uniffi-config:
 		sed 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f > $$f.tmp && mv $$f.tmp $$f; \
 	done
 
-generate-go: _check-repo-owner build build-tools-go stamp-uniffi-config
+generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-uniffi-config
 	$(call _log_debug,GO_BINDINGS_DIR = $(GO_BINDINGS_DIR))
 	$(call _log_debug,GO_MODULE_BASE = $(GO_MODULE_BASE))
 	$(call _log_debug,CGO_OS = $(CGO_OS)  CGO_ARCH = $(CGO_ARCH))
@@ -380,11 +442,11 @@ install-go: generate-go
 	$(call _log_info,go packages ready at $(GO_BINDINGS_DIR)/)
 
 # ── WASM / TypeScript bindings ───────────────────────────────────────────────
-# Builds each FFI crate to wasm32-unknown-unknown, then runs uniffi-bindgen-
+# Builds each FFI crate to $(WASM_TARGET), then runs uniffi-bindgen-
 # react-native to produce TypeScript sources + .wasm blobs.
 # npm package pattern: $(NPM_SCOPE)/<crate-name> (derived from Cargo.toml)
 
-generate-wasm-ts: _check-repo-owner build-tools-wasm
+generate-wasm-ts: _check-repo-owner ensure-wasm-target build-tools-wasm
 	$(call _log_debug,JS_BINDINGS_DIR = $(JS_BINDINGS_DIR))
 	$(call _log_debug,NPM_SCOPE = $(NPM_SCOPE))
 	$(call _log_debug,NPM_ROOT_PKG_NAME = $(NPM_ROOT_PKG_NAME))
@@ -413,19 +475,19 @@ generate-wasm-ts: _check-repo-owner build-tools-wasm
 		log_debug "output dir:  $$pkg_dir"; \
 		mkdir -p $$pkg_dir/src; \
 		log_info "building wasm for $$crate_name_hy"; \
-		log_debug "RUSTFLAGS=\"-C link-arg=--export-table -C link-arg=--growable-table\" cargo build --release --target wasm32-unknown-unknown -p $$crate_name_hy --features wasm"; \
+		log_debug "RUSTFLAGS=\"-C link-arg=--export-table -C link-arg=--growable-table\" cargo build --release --target $(WASM_TARGET) -p $$crate_name_hy --features wasm"; \
 		RUSTFLAGS="-C link-arg=--export-table -C link-arg=--growable-table" \
-		cargo build --release --target wasm32-unknown-unknown \
+		cargo build --release --target $(WASM_TARGET) \
 			-p $$crate_name_hy --features wasm; \
 		log_info "generating wasm/ts bindings for $$ffi_lib"; \
-		log_debug "bindgen cmd: $(UNIFFI_BINDGEN_RN) generate wasm2 bindings --library target/wasm32-unknown-unknown/release/$$crate_name_us.wasm --no-format --ts-dir $$pkg_dir/src"; \
+		log_debug "bindgen cmd: $(UNIFFI_BINDGEN_RN) generate wasm2 bindings --library target/$(WASM_TARGET)/release/$$crate_name_us.wasm --no-format --ts-dir $$pkg_dir/src"; \
 		$(UNIFFI_BINDGEN_RN) \
 			generate wasm2 bindings \
-			--library target/wasm32-unknown-unknown/release/$${crate_name_us}.wasm \
+			--library target/$(WASM_TARGET)/release/$${crate_name_us}.wasm \
 			--no-format \
 			--ts-dir $$pkg_dir/src; \
 		log_debug "copying $$crate_name_us.wasm → $$pkg_dir/src/"; \
-		cp target/wasm32-unknown-unknown/release/$${crate_name_us}.wasm $$pkg_dir/src/; \
+		cp target/$(WASM_TARGET)/release/$${crate_name_us}.wasm $$pkg_dir/src/; \
 		crate_version=$$(grep '^version' $(CURDIR)/crates/ffi/$$crate_dir/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/'); \
 		log_info "stamping $$npm_pkg@$$crate_version"; \
 		sed -e "s|PKG_NAME|$$npm_pkg|" \
