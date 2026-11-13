@@ -256,6 +256,8 @@ jobs:
       upload-artifacts: true
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
       python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
+      rust-version: ${{ vars.RUST_VERSION || 'stable' }}
+      maturin-version: ${{ vars.MATURIN_VERSION || '' }}
 
   build-go-bindings:
     name: Build Go bindings
@@ -271,6 +273,7 @@ jobs:
       ffi-libs: ${{ needs.detect-changes.outputs.ffi-libs }}
       go-version: ${{ vars.GO_VERSION || '1.21' }}
       python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
+      rust-version: ${{ vars.RUST_VERSION || 'stable' }}
 
   build-js-bindings:
     name: Build JS bindings
@@ -288,6 +291,7 @@ jobs:
       node-version: ${{ vars.NODE_VERSION || '20' }}
       pnpm-version: ${{ vars.PNPM_VERSION || '9' }}
       wasm-target: ${{ vars.WASM_TARGET || 'wasm32-unknown-unknown' }}
+      rust-version: ${{ vars.RUST_VERSION || 'stable' }}
 
   publish-bindings:
     name: Publish bindings

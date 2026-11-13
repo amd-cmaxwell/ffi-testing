@@ -107,6 +107,8 @@ When creating a new project from this template, configure these as GitHub reposi
 | `GO_VERSION` | no | Go version (default: `stable` for CI tests, `1.21` for builds) |
 | `PYTHON_VERSION` | no | Python version (default: `3.12`) |
 | `PNPM_VERSION` | no | pnpm version (default: `9`) |
+| `RUST_VERSION` | no | Rust toolchain channel/version (default: `stable`) |
+| `MATURIN_VERSION` | no | maturin version pin (default: latest) |
 | `WASM_TARGET` | no | Rust WASM compilation target (default: `wasm32-unknown-unknown`) |
 
 The Makefile resolves `REPO_OWNER` and `REPO_NAME` dynamically from the git remote by default. See [`.github/workflows/README.md`](.github/workflows/README.md) for the full configurable variables reference.
