@@ -25,6 +25,10 @@ on:
         required: false
         type: string
         default: "3.12"
+      rust-version:
+        required: false
+        type: string
+        default: "stable"
 
 env:
   CARGO_TERM_COLOR: always
@@ -49,7 +53,9 @@ jobs:
         run: echo "LOG_LEVEL=${{ runner.debug == '1' && '2' || '1' }}" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust-version }}
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-go@v5
         with:
@@ -85,6 +91,9 @@ jobs:
           CGO_OS: ${{ matrix.cgo_os }}
           CGO_ARCH: ${{ matrix.cgo_arch }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
+          GO_VERSION: ${{ inputs.go-version }}
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          RUST_VERSION: ${{ inputs.rust-version }}
 
       - name: List generated artifacts
         if: inputs.upload-artifacts

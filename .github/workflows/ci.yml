@@ -11,6 +11,7 @@ env:
   CARGO_TERM_COLOR: always
   NODE_VERSION: ${{ vars.NODE_VERSION || '20' }}
   GO_VERSION: ${{ vars.GO_VERSION || 'stable' }}
+  RUST_VERSION: ${{ vars.RUST_VERSION || 'stable' }}
 
 jobs:
   check-ffi-coverage:
@@ -43,7 +44,9 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
@@ -56,6 +59,8 @@ jobs:
       repo-name: ${{ vars.REPO_NAME }}
       upload-artifacts: true
       python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
+      rust-version: ${{ vars.RUST_VERSION || 'stable' }}
+      maturin-version: ${{ vars.MATURIN_VERSION || '' }}
 
   build-go-bindings:
     name: Build Go Bindings
@@ -67,6 +72,7 @@ jobs:
       upload-artifacts: true
       go-version: ${{ vars.GO_VERSION || '1.21' }}
       python-version: ${{ vars.PYTHON_VERSION || '3.12' }}
+      rust-version: ${{ vars.RUST_VERSION || 'stable' }}
 
   build-js-bindings:
     name: Build JS Bindings
@@ -79,6 +85,7 @@ jobs:
       node-version: ${{ vars.NODE_VERSION || '20' }}
       pnpm-version: ${{ vars.PNPM_VERSION || '9' }}
       wasm-target: ${{ vars.WASM_TARGET || 'wasm32-unknown-unknown' }}
+      rust-version: ${{ vars.RUST_VERSION || 'stable' }}
 
   test-python-bindings:
     name: Test Python bindings

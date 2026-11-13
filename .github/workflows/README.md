@@ -92,6 +92,8 @@ See [Release flow](#release-flow) below for the detailed sequence.
 | `upload-artifacts` | no | `false` | Upload wheels and binding sources as artifacts |
 | `ffi-libs` | no | `"auto"` | Space-separated FFI crates to build |
 | `python-version` | no | `"3.12"` | Python version for the build |
+| `rust-version` | no | `"stable"` | Rust toolchain (channel, version, or nightly date) |
+| `maturin-version` | no | `""` | maturin version pin (empty = latest) |
 
 **Artifacts uploaded** (when `upload-artifacts: true`):
 
@@ -120,6 +122,7 @@ See [Release flow](#release-flow) below for the detailed sequence.
 | `ffi-libs` | no | `"auto"` | Space-separated FFI crates to build |
 | `go-version` | no | `"1.21"` | Go version for the build |
 | `python-version` | no | `"3.12"` | Python version (used by Go binding generation tooling) |
+| `rust-version` | no | `"stable"` | Rust toolchain (channel, version, or nightly date) |
 
 **Artifacts uploaded:**
 
@@ -149,6 +152,7 @@ See [Release flow](#release-flow) below for the detailed sequence.
 | `node-version` | no | `"20"` | Node.js version |
 | `pnpm-version` | no | `"9"` | pnpm version |
 | `wasm-target` | no | `"wasm32-unknown-unknown"` | Rust WASM compilation target |
+| `rust-version` | no | `"stable"` | Rust toolchain (channel, version, or nightly date) |
 
 **Artifacts uploaded:**
 
@@ -204,8 +208,10 @@ Set these to override tool version defaults. If unset, the fallback defaults are
 | `PYTHON_VERSION` | `3.12` | build-python-bindings.yml, build-go-bindings.yml | Python version |
 | `PNPM_VERSION` | `9` | build-js-bindings.yml | pnpm version |
 | `WASM_TARGET` | `wasm32-unknown-unknown` | build-js-bindings.yml | Rust WASM compilation target |
+| `RUST_VERSION` | `stable` | ci.yml, all build workflows | Rust toolchain (channel, version, or nightly date) |
+| `MATURIN_VERSION` | _(latest)_ | build-python-bindings.yml | maturin version pin (empty = latest) |
 
-> **Note:** The Makefile has its own overridable variables for local builds, including all of the above plus `RUST_VERSION`, `NVM_VERSION`, `UV_VERSION`, and `MATURIN_VERSION`. The Makefile also auto-bootstraps all toolchains (Rust, Python, Go, Node.js) when missing. Run `make config` to see all resolved values.
+> **Note:** CI installs toolchains via dedicated GitHub Actions (`actions/setup-node`, `actions/setup-python`, `dtolnay/rust-toolchain`) but forwards the same version variables as env vars to `make`. The Makefile has two additional variables for local bootstrapping only: `NVM_VERSION` (nvm installer version) and `UV_VERSION` (uv installer version) — these are not used in CI. The Makefile auto-bootstraps all toolchains when missing. Run `make config` to see all resolved values.
 
 ## Release flow
 

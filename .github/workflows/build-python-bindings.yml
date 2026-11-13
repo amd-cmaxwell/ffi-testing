@@ -21,6 +21,14 @@ on:
         required: false
         type: string
         default: "3.12"
+      rust-version:
+        required: false
+        type: string
+        default: "stable"
+      maturin-version:
+        required: false
+        type: string
+        default: ""
 
 env:
   CARGO_TERM_COLOR: always
@@ -48,13 +56,15 @@ jobs:
         run: echo "LOG_LEVEL=${{ runner.debug == '1' && '2' || '1' }}" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.rust-version }}
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ inputs.python-version }}
 
-      - run: pip install maturin
+      - run: pip install maturin${{ inputs.maturin-version && format('=={0}', inputs.maturin-version) || '' }}
 
       - name: Cache uniffi-bindgen
         id: cache-bindgen
@@ -81,6 +91,9 @@ jobs:
           REPO_OWNER: ${{ inputs.repo-owner }}
           REPO_NAME: ${{ inputs.repo-name }}
           FFI_LIBS: ${{ inputs.ffi-libs }}
+          PYTHON_VERSION: ${{ inputs.python-version }}
+          RUST_VERSION: ${{ inputs.rust-version }}
+          MATURIN_VERSION: ${{ inputs.maturin-version }}
 
       - name: List generated artifacts
         if: inputs.upload-artifacts
