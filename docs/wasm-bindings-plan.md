@@ -23,7 +23,7 @@ Follow the same pattern as the existing Go bindgen: add as a git dependency behi
 - Update `ffi` feature to include `dep:uniffi-bindgen-js`
 - Add `[[bin]]` entry for `uniffi-bindgen-js` with `required-features = ["ffi"]`
 
-**New file: `crates/ffi/types/src/bin/uniffi-bindgen-js.rs`:**
+**New file: `crates/ffi/uniffi-math-demo-types/src/bin/uniffi-bindgen-js.rs`:**
 ```rust
 fn main() -> anyhow::Result<()> {
     let cli = uniffi_bindgen_js::cli::Cli::parse();
