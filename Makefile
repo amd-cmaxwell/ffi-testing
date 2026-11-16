@@ -574,8 +574,8 @@ test-python: generate-python
 	log_debug "uv tool install --force $(CURDIR)/examples/py-demo $$with_args"; \
 	uv tool install --force $(CURDIR)/examples/py-demo $$with_args
 	$(call _log_info,running python smoke test)
-	$(call _log_debug,uniffi-math-demo)
-	@uniffi-math-demo
+	$(call _log_debug,uniffi-py-demo)
+	@uniffi-py-demo
 
 test-go: install-go
 	@$(_shell_log_helpers) \
