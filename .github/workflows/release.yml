@@ -336,6 +336,15 @@ jobs:
           name: js-bindings
           path: bindings/js
 
+      - name: Fix example imports
+        run: |
+          scope="${RAW_SCOPE#@}"
+          make fix-example-imports NPM_SCOPE="@${scope}"
+        env:
+          REPO_OWNER: ${{ vars.REPO_OWNER }}
+          REPO_NAME: ${{ vars.REPO_NAME }}
+          RAW_SCOPE: ${{ vars.NPM_SCOPE || vars.REPO_OWNER }}
+
       - name: Commit FFI bindings to bindings branch
         id: commit-bindings
         shell: bash
@@ -360,8 +369,9 @@ jobs:
           # Merge main into bindings
           git merge main --no-edit
 
-          # Stage bindings (force-add past .gitignore)
+          # Stage bindings (force-add past .gitignore) and fixed example imports
           git add -f bindings/go/ bindings/python/
+          git add examples/go-demo/main.go examples/js-demo/main.mjs examples/web-demo/main.ts 2>/dev/null || true
           git add -f bindings/js/package.json bindings/js/pnpm-workspace.yaml
           for pkg_dir in bindings/js/"${NPM_SCOPE}"/*/; do
             [ -d "$pkg_dir" ] || continue

@@ -61,6 +61,7 @@ WASM_TARGET    ?= wasm32-unknown-unknown
        install-python install-go install-js compile-wasm-ts generate-js \
        test-python test-go test-js test-web test-all \
        stamp-uniffi-config _check-repo-owner \
+       fix-example-imports fix-example-go-imports fix-example-js-imports \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
        clean-py-demo clean-web clean-demos \
        clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
@@ -182,7 +183,7 @@ config:
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 
-setup:
+setup: _check-repo-owner stamp-uniffi-config fix-example-imports
 	git config core.hooksPath .githooks
 	@echo "  git hooks configured to use .githooks/"
 
@@ -378,6 +379,35 @@ stamp-uniffi-config:
 		log_info "stamping go_mod in $$f"; \
 		sed 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f > $$f.tmp && mv $$f.tmp $$f; \
 	done
+
+# Rewrites hardcoded import paths in examples/ to match the current project's
+# GO_MODULE_BASE (for Go) and NPM_SCOPE (for JS / web demos).
+fix-example-imports: fix-example-go-imports fix-example-js-imports
+
+fix-example-go-imports: _check-repo-owner
+	@$(_shell_log_helpers) \
+	found=false; \
+	for f in $(CURDIR)/examples/go-demo/main.go; do \
+		[ -f "$$f" ] || continue; \
+		found=true; \
+		log_info "fixing go imports in $$f"; \
+		sed -i 's|"[^"]*/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' "$$f"; \
+	done; \
+	$$found || log_info "no Go example files found — skipping"
+
+fix-example-js-imports: _check-repo-owner
+	@$(_shell_log_helpers) \
+	found=false; \
+	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts; do \
+		[ -f "$$f" ] || continue; \
+		found=true; \
+		log_info "fixing js imports in $$f"; \
+		sed -i \
+			-e 's|@[^/]*/uniffi-math-demo-|$(NPM_SCOPE)/uniffi-math-demo-|g' \
+			-e 's|node_modules/@[^/]*/|node_modules/$(NPM_SCOPE)/|g' \
+			"$$f"; \
+	done; \
+	$$found || log_info "no JS/web example files found — skipping"
 
 generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-uniffi-config
 	$(call _log_debug,GO_BINDINGS_DIR = $(GO_BINDINGS_DIR))
@@ -577,7 +607,7 @@ test-python: generate-python
 	$(call _log_debug,uniffi-py-demo)
 	@uniffi-py-demo
 
-test-go: install-go
+test-go: install-go fix-example-go-imports
 	@$(_shell_log_helpers) \
 	for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 		[ -f "$$pkg_dir/go.mod" ] || continue; \
@@ -602,7 +632,7 @@ test-go: install-go
 		rm -f go.sum; \
 		exit $$status
 
-test-js:
+test-js: fix-example-js-imports
 	$(call _log_debug,JS demo dir = $(CURDIR)/examples/js-demo)
 	@cp $(CURDIR)/examples/js-demo/package.template.json $(CURDIR)/examples/js-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
@@ -612,7 +642,7 @@ test-js:
 
 
 # Builds the browser-based web-demo with Vite to verify wasm packages work in a frontend context
-test-web:
+test-web: fix-example-js-imports
 	$(call _log_debug,web demo dir = $(CURDIR)/examples/web-demo)
 	@cp $(CURDIR)/examples/web-demo/package.template.json $(CURDIR)/examples/web-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/web-demo

@@ -120,7 +120,12 @@ jobs:
         with:
           name: go-bindings-linux-amd64
           path: bindings/go/
-
+      - name: Fix example Go imports
+        run: |
+          make fix-example-go-imports
+        env:
+          REPO_OWNER: ${{ vars.REPO_OWNER }}
+          REPO_NAME: ${{ vars.REPO_NAME }}
       - name: Run smoke test
         run: |
           cd examples/go-demo
@@ -147,11 +152,20 @@ jobs:
           name: npm-tarballs
           path: dist/npm/
 
-      - name: Install tarballs and run smoke test
+      - name: Install tarballs
         run: |
           cd examples/js-demo
           for tgz in ../../dist/npm/*.tgz; do
             echo "Installing $(basename "$tgz")"
             npm install "$tgz"
           done
-          node main.mjs
+      - name: Fix example JS imports
+        run: |
+          scope="${RAW_SCOPE#@}"
+          make fix-example-js-imports NPM_SCOPE="@${scope}"
+        env:
+          RAW_SCOPE: ${{ vars.NPM_SCOPE || vars.REPO_OWNER }}
+      - name: Run smoke test
+        working-directory: examples/js-demo
+        run: |
+          node --test main.mjs

@@ -1,7 +1,7 @@
 import {
   uniffiInitAsync as initCore,
   add,
-} from "@amd-cmaxwell/uniffi-math-demo-core-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-core-ffi";
 import {
   uniffiInitAsync as initComplex,
   complexNew,
@@ -12,7 +12,7 @@ import {
   complexMul,
   complexDisplay,
   quadraticRootsComplex,
-} from "@amd-cmaxwell/uniffi-math-demo-complex-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-complex-ffi";
 import {
   uniffiInitAsync as initPolynomials,
   polynomialEvaluate,
@@ -20,7 +20,7 @@ import {
   linearRoot,
   polynomialMultiply,
   polynomialDerivative,
-} from "@amd-cmaxwell/uniffi-math-demo-polynomials-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-polynomials-ffi";
 import {
   uniffiInitAsync as initLinearAlgebra,
   Matrix2x2,
@@ -29,7 +29,7 @@ import {
   solve2x2,
   dotProduct,
   crossProduct3d,
-} from "@amd-cmaxwell/uniffi-math-demo-linear-algebra-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-linear-algebra-ffi";
 import {
   uniffiInitAsync as initTrig,
   degreesToRadians,
@@ -39,7 +39,7 @@ import {
   triangleAreaHeron,
   circleArea,
   lawOfCosinesAngle,
-} from "@amd-cmaxwell/uniffi-math-demo-trig-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-trig-ffi";
 import {
   uniffiInitAsync as initSequences,
   arithmeticSum,
@@ -51,12 +51,12 @@ import {
   lcm,
   fibonacci,
   isPrime,
-} from "@amd-cmaxwell/uniffi-math-demo-sequences-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-sequences-ffi";
 import {
   uniffiInitAsync as initTypes,
   MathError_Tags,
   Point2,
-} from "@amd-cmaxwell/uniffi-math-demo-types-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-types-ffi";
 
 // ── Wasm initialization ─────────────────────────────────────────────────────
 
@@ -73,7 +73,7 @@ const PACKAGES = [
 async function initAll() {
   await Promise.all(
     PACKAGES.map(({ init, pkg, mod }) =>
-      init(fetch(new URL(`./node_modules/@amd-cmaxwell/${pkg}/src/${mod}.wasm`, import.meta.url)))
+      init(fetch(new URL(`./node_modules/@%NPM_SCOPE%/${pkg}/src/${mod}.wasm`, import.meta.url)))
     )
   );
 }

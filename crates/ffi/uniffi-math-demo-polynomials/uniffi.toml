@@ -1,5 +1,5 @@
 [bindings.go]
-go_mod = "github.com/amd-cmaxwell/ffi-testing/bindings/go"
+go_mod = "%GIT_HOST%/%REPO_OWNER%/%REPO_NAME%/bindings/go"
 
 [bindings.python.external_packages]
 uniffi_math_demo_types_ffi = "uniffi_math_demo_types_ffi"
