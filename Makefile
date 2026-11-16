@@ -182,7 +182,7 @@ config:
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 
-setup: _check-repo-owner stamp-uniffi-config
+setup: _check-repo-owner stamp-uniffi-config fix-example-imports
 	git config core.hooksPath .githooks
 	@echo "  git hooks configured to use .githooks/"
 
@@ -383,12 +383,15 @@ stamp-uniffi-config:
 # GO_MODULE_BASE (for Go) and NPM_SCOPE (for JS / web demos).
 fix-example-imports: _check-repo-owner
 	$(call _log_info,fixing import paths in examples/)
-	@sed -i 's|"[^"]*\/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' \
-		$(CURDIR)/examples/go-demo/main.go
 	@$(_shell_log_helpers) \
+	for f in $(CURDIR)/examples/go-demo/main.go; do \
+		[ -f "$$f" ] || continue; \
+		log_debug "fixing go imports in $$f"; \
+		sed -i 's|"[^"]*\/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' "$$f"; \
+	done; \
 	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts; do \
 		[ -f "$$f" ] || continue; \
-		log_debug "fixing imports in $$f"; \
+		log_debug "fixing js imports in $$f"; \
 		sed -i \
 			-e 's|@[a-zA-Z0-9_-]*/uniffi-math-demo-|$(NPM_SCOPE)/uniffi-math-demo-|g' \
 			-e 's|node_modules/@[a-zA-Z0-9_-]*/|node_modules/$(NPM_SCOPE)/|g' \
