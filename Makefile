@@ -60,7 +60,8 @@ WASM_TARGET    ?= wasm32-unknown-unknown
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
        test-python test-go test-js test-web test-all \
-       stamp-uniffi-config _check-repo-owner fix-example-imports \
+       stamp-uniffi-config _check-repo-owner \
+       fix-example-imports fix-example-go-imports fix-example-js-imports \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
        clean-py-demo clean-web clean-demos \
        clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
@@ -381,14 +382,20 @@ stamp-uniffi-config:
 
 # Rewrites hardcoded import paths in examples/ to match the current project's
 # GO_MODULE_BASE (for Go) and NPM_SCOPE (for JS / web demos).
-fix-example-imports: _check-repo-owner
-	$(call _log_info,fixing import paths in examples/)
+fix-example-imports: fix-example-go-imports fix-example-js-imports
+
+fix-example-go-imports: _check-repo-owner
+	$(call _log_info,fixing Go import paths in examples/)
 	@$(_shell_log_helpers) \
 	for f in $(CURDIR)/examples/go-demo/main.go; do \
 		[ -f "$$f" ] || continue; \
 		log_debug "fixing go imports in $$f"; \
 		sed -i 's|"[^"]*\/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' "$$f"; \
-	done; \
+	done
+
+fix-example-js-imports: _check-repo-owner
+	$(call _log_info,fixing JS/web import paths in examples/)
+	@$(_shell_log_helpers) \
 	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts; do \
 		[ -f "$$f" ] || continue; \
 		log_debug "fixing js imports in $$f"; \
@@ -596,7 +603,7 @@ test-python: generate-python
 	$(call _log_debug,uniffi-py-demo)
 	@uniffi-py-demo
 
-test-go: install-go fix-example-imports
+test-go: install-go fix-example-go-imports
 	@$(_shell_log_helpers) \
 	for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 		[ -f "$$pkg_dir/go.mod" ] || continue; \
@@ -621,7 +628,7 @@ test-go: install-go fix-example-imports
 		rm -f go.sum; \
 		exit $$status
 
-test-js: fix-example-imports
+test-js: fix-example-js-imports
 	$(call _log_debug,JS demo dir = $(CURDIR)/examples/js-demo)
 	@cp $(CURDIR)/examples/js-demo/package.template.json $(CURDIR)/examples/js-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
@@ -631,7 +638,7 @@ test-js: fix-example-imports
 
 
 # Builds the browser-based web-demo with Vite to verify wasm packages work in a frontend context
-test-web: fix-example-imports
+test-web: fix-example-js-imports
 	$(call _log_debug,web demo dir = $(CURDIR)/examples/web-demo)
 	@cp $(CURDIR)/examples/web-demo/package.template.json $(CURDIR)/examples/web-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/web-demo
