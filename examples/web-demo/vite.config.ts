@@ -4,13 +4,13 @@ export default defineConfig({
   assetsInclude: ["**/*.wasm"],
   optimizeDeps: {
     exclude: [
-      "@amd-cmaxwell/uniffi-math-demo-core-ffi",
-      "@amd-cmaxwell/uniffi-math-demo-complex-ffi",
-      "@amd-cmaxwell/uniffi-math-demo-polynomials-ffi",
-      "@amd-cmaxwell/uniffi-math-demo-linear-algebra-ffi",
-      "@amd-cmaxwell/uniffi-math-demo-trig-ffi",
-      "@amd-cmaxwell/uniffi-math-demo-sequences-ffi",
-      "@amd-cmaxwell/uniffi-math-demo-types-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-core-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-complex-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-polynomials-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-linear-algebra-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-trig-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-sequences-ffi",
+      "@%NPM_SCOPE%/uniffi-math-demo-types-ffi",
     ],
   },
 });
