@@ -398,7 +398,7 @@ fix-example-go-imports: _check-repo-owner
 fix-example-js-imports: _check-repo-owner
 	@$(_shell_log_helpers) \
 	found=false; \
-	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts; do \
+	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts $(CURDIR)/examples/web-demo/vite.config.ts; do \
 		[ -f "$$f" ] || continue; \
 		found=true; \
 		log_info "fixing js imports in $$f"; \
