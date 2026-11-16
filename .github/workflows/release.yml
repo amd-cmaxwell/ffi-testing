@@ -337,11 +337,13 @@ jobs:
           path: bindings/js
 
       - name: Fix example imports
-        run: make fix-example-imports
+        run: |
+          scope="${RAW_SCOPE#@}"
+          make fix-example-imports NPM_SCOPE="@${scope}"
         env:
           REPO_OWNER: ${{ vars.REPO_OWNER }}
           REPO_NAME: ${{ vars.REPO_NAME }}
-          NPM_SCOPE: ${{ vars.NPM_SCOPE || vars.REPO_OWNER }}
+          RAW_SCOPE: ${{ vars.NPM_SCOPE || vars.REPO_OWNER }}
 
       - name: Commit FFI bindings to bindings branch
         id: commit-bindings

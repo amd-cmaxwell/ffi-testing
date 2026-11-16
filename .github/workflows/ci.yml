@@ -161,9 +161,11 @@ jobs:
           done
       - name: Fix example JS imports
         run: |
-          make fix-example-js-imports
+          scope="${RAW_SCOPE#@}"
+          make fix-example-js-imports NPM_SCOPE="@${scope}"
         env:
-          NPM_SCOPE: ${{ vars.NPM_SCOPE || vars.REPO_OWNER}}
+          RAW_SCOPE: ${{ vars.NPM_SCOPE || vars.REPO_OWNER }}
       - name: Run smoke test
+        working-directory: examples/js-demo
         run: |
-          node main.mjs
+          node --test main.mjs

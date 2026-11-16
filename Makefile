@@ -385,25 +385,29 @@ stamp-uniffi-config:
 fix-example-imports: fix-example-go-imports fix-example-js-imports
 
 fix-example-go-imports: _check-repo-owner
-	$(call _log_info,fixing Go import paths in examples/)
 	@$(_shell_log_helpers) \
+	found=false; \
 	for f in $(CURDIR)/examples/go-demo/main.go; do \
 		[ -f "$$f" ] || continue; \
-		log_debug "fixing go imports in $$f"; \
+		found=true; \
+		log_info "fixing go imports in $$f"; \
 		sed -i 's|"[^"]*\/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' "$$f"; \
-	done
+	done; \
+	$$found || log_info "no Go example files found — skipping"
 
 fix-example-js-imports: _check-repo-owner
-	$(call _log_info,fixing JS/web import paths in examples/)
 	@$(_shell_log_helpers) \
+	found=false; \
 	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts; do \
 		[ -f "$$f" ] || continue; \
-		log_debug "fixing js imports in $$f"; \
+		found=true; \
+		log_info "fixing js imports in $$f"; \
 		sed -i \
 			-e 's|@[a-zA-Z0-9_-]*/uniffi-math-demo-|$(NPM_SCOPE)/uniffi-math-demo-|g' \
 			-e 's|node_modules/@[a-zA-Z0-9_-]*/|node_modules/$(NPM_SCOPE)/|g' \
 			"$$f"; \
-	done
+	done; \
+	$$found || log_info "no JS/web example files found — skipping"
 
 generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-uniffi-config
 	$(call _log_debug,GO_BINDINGS_DIR = $(GO_BINDINGS_DIR))
