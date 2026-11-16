@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.9"
 
 [project.scripts]
+uniffi-py-demo = "py_demo:main"
 uniffi-math-demo = "py_demo:main"
 
 [build-system]
