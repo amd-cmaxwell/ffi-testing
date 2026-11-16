@@ -371,7 +371,7 @@ jobs:
 
           # Stage bindings (force-add past .gitignore) and fixed example imports
           git add -f bindings/go/ bindings/python/
-          git add examples/go-demo/main.go examples/js-demo/main.mjs examples/web-demo/main.ts 2>/dev/null || true
+          git add examples/go-demo/main.go examples/js-demo/main.mjs examples/web-demo/main.ts examples/web-demo/vite.config.ts 2>/dev/null || true
           git add -f bindings/js/package.json bindings/js/pnpm-workspace.yaml
           for pkg_dir in bindings/js/"${NPM_SCOPE}"/*/; do
             [ -d "$pkg_dir" ] || continue
