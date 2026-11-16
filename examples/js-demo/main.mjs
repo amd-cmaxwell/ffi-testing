@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import {
   uniffiInitAsync as initCore,
   add,
-} from "@amd-cmaxwell/uniffi-math-demo-core-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-core-ffi";
 import {
   uniffiInitAsync as initComplex,
   complexNew,
@@ -17,7 +17,7 @@ import {
   complexMul,
   complexDisplay,
   quadraticRootsComplex,
-} from "@amd-cmaxwell/uniffi-math-demo-complex-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-complex-ffi";
 import {
   uniffiInitAsync as initPolynomials,
   polynomialEvaluate,
@@ -25,7 +25,7 @@ import {
   linearRoot,
   polynomialMultiply,
   polynomialDerivative,
-} from "@amd-cmaxwell/uniffi-math-demo-polynomials-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-polynomials-ffi";
 import {
   uniffiInitAsync as initLinearAlgebra,
   Matrix2x2,
@@ -34,7 +34,7 @@ import {
   solve2x2,
   dotProduct,
   crossProduct3d,
-} from "@amd-cmaxwell/uniffi-math-demo-linear-algebra-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-linear-algebra-ffi";
 import {
   uniffiInitAsync as initTrig,
   degreesToRadians,
@@ -44,7 +44,7 @@ import {
   triangleAreaHeron,
   circleArea,
   lawOfCosinesAngle,
-} from "@amd-cmaxwell/uniffi-math-demo-trig-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-trig-ffi";
 import {
   uniffiInitAsync as initSequences,
   arithmeticSum,
@@ -56,12 +56,12 @@ import {
   lcm,
   fibonacci,
   isPrime,
-} from "@amd-cmaxwell/uniffi-math-demo-sequences-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-sequences-ffi";
 import {
   uniffiInitAsync as initTypes,
   MathError_Tags,
   Point2,
-} from "@amd-cmaxwell/uniffi-math-demo-types-ffi";
+} from "@%NPM_SCOPE%/uniffi-math-demo-types-ffi";
 
 const require = createRequire(import.meta.url);
 const wasmUrl = (pkg, name) =>
@@ -69,13 +69,13 @@ const wasmUrl = (pkg, name) =>
 
 before(async () => {
   await Promise.all([
-    initTypes(wasmUrl("@amd-cmaxwell/uniffi-math-demo-types-ffi", "uniffi_math_demo_types_ffi")),
-    initCore(wasmUrl("@amd-cmaxwell/uniffi-math-demo-core-ffi", "uniffi_math_demo_core_ffi")),
-    initComplex(wasmUrl("@amd-cmaxwell/uniffi-math-demo-complex-ffi", "uniffi_math_demo_complex_ffi")),
-    initPolynomials(wasmUrl("@amd-cmaxwell/uniffi-math-demo-polynomials-ffi", "uniffi_math_demo_polynomials_ffi")),
-    initLinearAlgebra(wasmUrl("@amd-cmaxwell/uniffi-math-demo-linear-algebra-ffi", "uniffi_math_demo_linear_algebra_ffi")),
-    initTrig(wasmUrl("@amd-cmaxwell/uniffi-math-demo-trig-ffi", "uniffi_math_demo_trig_ffi")),
-    initSequences(wasmUrl("@amd-cmaxwell/uniffi-math-demo-sequences-ffi", "uniffi_math_demo_sequences_ffi")),
+    initTypes(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-types-ffi", "uniffi_math_demo_types_ffi")),
+    initCore(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-core-ffi", "uniffi_math_demo_core_ffi")),
+    initComplex(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-complex-ffi", "uniffi_math_demo_complex_ffi")),
+    initPolynomials(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-polynomials-ffi", "uniffi_math_demo_polynomials_ffi")),
+    initLinearAlgebra(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-linear-algebra-ffi", "uniffi_math_demo_linear_algebra_ffi")),
+    initTrig(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-trig-ffi", "uniffi_math_demo_trig_ffi")),
+    initSequences(wasmUrl("@%NPM_SCOPE%/uniffi-math-demo-sequences-ffi", "uniffi_math_demo_sequences_ffi")),
   ]);
 });
 

@@ -60,7 +60,7 @@ WASM_TARGET    ?= wasm32-unknown-unknown
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
        test-python test-go test-js test-web test-all \
-       stamp-uniffi-config _check-repo-owner \
+       stamp-uniffi-config _check-repo-owner fix-example-imports \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
        clean-py-demo clean-web clean-demos \
        clean-py-artifacts clean-js-artifacts clean-artifacts clean-all purge
@@ -182,7 +182,7 @@ config:
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 
-setup:
+setup: _check-repo-owner stamp-uniffi-config
 	git config core.hooksPath .githooks
 	@echo "  git hooks configured to use .githooks/"
 
@@ -377,6 +377,22 @@ stamp-uniffi-config:
 	for f in $(UNIFFI_TOML_FILES); do \
 		log_info "stamping go_mod in $$f"; \
 		sed 's|go_mod = ".*"|go_mod = "$(GO_MODULE_BASE)"|' $$f > $$f.tmp && mv $$f.tmp $$f; \
+	done
+
+# Rewrites hardcoded import paths in examples/ to match the current project's
+# GO_MODULE_BASE (for Go) and NPM_SCOPE (for JS / web demos).
+fix-example-imports: _check-repo-owner
+	$(call _log_info,fixing import paths in examples/)
+	@sed -i 's|"[^"]*\/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' \
+		$(CURDIR)/examples/go-demo/main.go
+	@$(_shell_log_helpers) \
+	for f in $(CURDIR)/examples/js-demo/main.mjs $(CURDIR)/examples/web-demo/main.ts; do \
+		[ -f "$$f" ] || continue; \
+		log_debug "fixing imports in $$f"; \
+		sed -i \
+			-e 's|@[a-zA-Z0-9_-]*/uniffi-math-demo-|$(NPM_SCOPE)/uniffi-math-demo-|g' \
+			-e 's|node_modules/@[a-zA-Z0-9_-]*/|node_modules/$(NPM_SCOPE)/|g' \
+			"$$f"; \
 	done
 
 generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-uniffi-config
@@ -577,7 +593,7 @@ test-python: generate-python
 	$(call _log_debug,uniffi-py-demo)
 	@uniffi-py-demo
 
-test-go: install-go
+test-go: install-go fix-example-imports
 	@$(_shell_log_helpers) \
 	for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 		[ -f "$$pkg_dir/go.mod" ] || continue; \
@@ -602,7 +618,7 @@ test-go: install-go
 		rm -f go.sum; \
 		exit $$status
 
-test-js:
+test-js: fix-example-imports
 	$(call _log_debug,JS demo dir = $(CURDIR)/examples/js-demo)
 	@cp $(CURDIR)/examples/js-demo/package.template.json $(CURDIR)/examples/js-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
@@ -612,7 +628,7 @@ test-js:
 
 
 # Builds the browser-based web-demo with Vite to verify wasm packages work in a frontend context
-test-web:
+test-web: fix-example-imports
 	$(call _log_debug,web demo dir = $(CURDIR)/examples/web-demo)
 	@cp $(CURDIR)/examples/web-demo/package.template.json $(CURDIR)/examples/web-demo/package.json
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/web-demo
