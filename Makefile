@@ -391,7 +391,7 @@ fix-example-go-imports: _check-repo-owner
 		[ -f "$$f" ] || continue; \
 		found=true; \
 		log_info "fixing go imports in $$f"; \
-		sed -i 's|"[^"]*\/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' "$$f"; \
+		sed -i 's|"[^"]*/uniffi_math_demo_|"$(GO_MODULE_BASE)/uniffi_math_demo_|g' "$$f"; \
 	done; \
 	$$found || log_info "no Go example files found — skipping"
 
@@ -403,8 +403,8 @@ fix-example-js-imports: _check-repo-owner
 		found=true; \
 		log_info "fixing js imports in $$f"; \
 		sed -i \
-			-e 's|@[a-zA-Z0-9_-]*/uniffi-math-demo-|$(NPM_SCOPE)/uniffi-math-demo-|g' \
-			-e 's|node_modules/@[a-zA-Z0-9_-]*/|node_modules/$(NPM_SCOPE)/|g' \
+			-e 's|@[^/]*/uniffi-math-demo-|$(NPM_SCOPE)/uniffi-math-demo-|g' \
+			-e 's|node_modules/@[^/]*/|node_modules/$(NPM_SCOPE)/|g' \
 			"$$f"; \
 	done; \
 	$$found || log_info "no JS/web example files found — skipping"
