@@ -31,7 +31,7 @@ define _source_node
 export NVM_DIR="$${HOME}/.nvm"; \
 [ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh" || true; \
 export PNPM_HOME="$$HOME/.local/share/pnpm"; \
-export PATH="$$PNPM_HOME:$$PATH";
+export PATH="$$PNPM_HOME/bin:$$PNPM_HOME:$$PATH";
 endef
 
 # ── Tool / runtime versions ──────────────────────────────────────────────────
