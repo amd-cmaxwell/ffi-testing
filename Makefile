@@ -19,6 +19,21 @@ log_info()  { [ $(_LOG_LEVEL) -ge 1 ] && echo "  $$*" || :; }; \
 log_debug() { [ $(_LOG_LEVEL) -ge 2 ] && echo "  [debug] $$*" || :; };
 endef
 
+# Shell-level PATH helpers (paste into recipe preambles for tools installed to
+# non-standard locations — each is a no-op when the directory doesn't exist)
+define _source_go
+export PATH="$$HOME/.local/go/bin:$$PATH";
+endef
+define _source_uv
+export PATH="$$HOME/.local/bin:$$PATH";
+endef
+define _source_node
+export NVM_DIR="$${HOME}/.nvm"; \
+[ -s "$$NVM_DIR/nvm.sh" ] && . "$$NVM_DIR/nvm.sh" || true; \
+export PNPM_HOME="$$HOME/.local/share/pnpm"; \
+export PATH="$$PNPM_HOME:$$PATH";
+endef
+
 # ── Tool / runtime versions ──────────────────────────────────────────────────
 # Override these when forking the template for a downstream project.
 GO_VERSION     ?= 1.21.0
@@ -55,6 +70,7 @@ WASM_TARGET    ?= wasm32-unknown-unknown
 # ──────────────────────────────────────────────────────────────────────────────
 
 .PHONY: config setup build test \
+       ensure-system-deps \
        python-dependencies js-dependencies install-rust ensure-wasm-target install-python-toolchain install-node install-go-toolchain \
        build-tools-py build-tools-go build-tools-wasm \
        generate-python generate-go generate-wasm-ts generate-all \
@@ -200,8 +216,31 @@ test: install-rust
 # ── Dependency bootstrapping ─────────────────────────────────────────────────
 # These targets are no-ops when the required tools are already installed.
 
+# Checks for required system-level build dependencies (C compiler, pkg-config, OpenSSL headers)
+ensure-system-deps:
+	@missing=""; \
+	command -v cc >/dev/null 2>&1 || missing="$$missing C-compiler"; \
+	command -v pkg-config >/dev/null 2>&1 || missing="$$missing pkg-config"; \
+	pkg-config --exists openssl 2>/dev/null || missing="$$missing openssl-dev"; \
+	if [ -n "$$missing" ]; then \
+		echo "error: missing system dependencies:$$missing"; \
+		echo ""; \
+		if command -v apt-get >/dev/null 2>&1; then \
+			echo "  sudo apt-get install -y build-essential pkg-config libssl-dev"; \
+		elif command -v brew >/dev/null 2>&1; then \
+			echo "  brew install openssl pkg-config"; \
+		elif command -v dnf >/dev/null 2>&1; then \
+			echo "  sudo dnf install -y gcc make pkg-config openssl-devel"; \
+		elif command -v pacman >/dev/null 2>&1; then \
+			echo "  sudo pacman -S base-devel pkg-config openssl"; \
+		else \
+			echo "  install a C compiler, pkg-config, and openssl development headers"; \
+		fi; \
+		exit 1; \
+	fi
+
 # Ensures Rust toolchain is available (installs via rustup if needed)
-install-rust:
+install-rust: ensure-system-deps
 	@$(_shell_log_helpers) \
 	command -v rustup >/dev/null 2>&1 || { \
 		log_info "rustup not found, installing"; \
@@ -223,11 +262,21 @@ ensure-wasm-target: install-rust
 # Ensures Python is available (installs via uv if needed)
 install-python-toolchain:
 	@$(_shell_log_helpers) \
+	$(_source_uv) \
 	command -v uv >/dev/null 2>&1 || { \
 		log_info "uv not found, installing"; \
 		uv_url="https://astral.sh/uv/$(if $(UV_VERSION),$(UV_VERSION)/)install.sh"; \
 		log_debug "curl -LsSf $$uv_url | sh"; \
 		curl -LsSf "$$uv_url" | sh; \
+		$(_source_uv) \
+		uv_path_line='export PATH="$$HOME/.local/bin:$$PATH"'; \
+		for rc in "$$HOME/.bashrc" "$$HOME/.profile"; do \
+			if [ -f "$$rc" ] && ! grep -qF '/.local/bin' "$$rc"; then \
+				echo "" >> "$$rc"; \
+				echo "$$uv_path_line" >> "$$rc"; \
+				log_info "added ~/.local/bin to PATH in $$(basename $$rc)"; \
+			fi; \
+		done; \
 	}; \
 	command -v python3 >/dev/null 2>&1 || { \
 		log_info "python not found, installing $(PYTHON_VERSION) via uv"; \
@@ -238,6 +287,7 @@ install-python-toolchain:
 # Ensures maturin is available (uv is guaranteed by install-python-toolchain)
 python-dependencies: install-python-toolchain
 	@$(_shell_log_helpers) \
+	$(_source_uv) \
 	command -v maturin >/dev/null 2>&1 || { \
 		log_info "maturin not found, installing via uv"; \
 		log_debug "uv tool install maturin$(if $(MATURIN_VERSION),==$(MATURIN_VERSION))"; \
@@ -247,6 +297,7 @@ python-dependencies: install-python-toolchain
 # Ensures Node.js is available (installs via nvm if needed)
 install-node:
 	@$(_shell_log_helpers) \
+	$(_source_node) \
 	command -v node >/dev/null 2>&1 || { \
 		echo "  node not found, installing via nvm"; \
 		export NVM_DIR="$${HOME}/.nvm"; \
@@ -254,28 +305,52 @@ install-node:
 			echo "  nvm not found, installing"; \
 			curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/$(NVM_VERSION)/install.sh | bash; \
 		fi; \
-		log_debug ". \$$NVM_DIR/nvm.sh && nvm install $(NODE_VERSION)"; \
-		. "$$NVM_DIR/nvm.sh" && nvm install $(NODE_VERSION); \
+		. "$$NVM_DIR/nvm.sh"; \
+		log_debug "nvm install $(NODE_VERSION)"; \
+		nvm install $(NODE_VERSION); \
 	}
 
-# Ensures Go is available (installs via go.dev installer if needed)
+# Ensures Go is available (installs to ~/.local/go, no sudo required)
 install-go-toolchain:
 	@$(_shell_log_helpers) \
+	$(_source_go) \
 	command -v go >/dev/null 2>&1 || { \
 		log_info "go not found, installing $(GO_VERSION)"; \
-		log_debug "curl -LsSf https://go.dev/dl/go$(GO_VERSION).$$(uname -s | tr A-Z a-z)-$$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz | tar -C /usr/local -xzf -"; \
-		curl -LsSf "https://go.dev/dl/go$(GO_VERSION).$$(uname -s | tr A-Z a-z)-$$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | sudo tar -C /usr/local -xzf -; \
-		export PATH="/usr/local/go/bin:$$PATH"; \
+		go_tarball="go$(GO_VERSION).$$(uname -s | tr A-Z a-z)-$$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"; \
+		go_url="https://go.dev/dl/$$go_tarball"; \
+		mkdir -p "$$HOME/.local"; \
+		log_debug "downloading $$go_url → ~/.local/go"; \
+		if command -v wget >/dev/null 2>&1; then \
+			wget -qO- "$$go_url" | tar -C "$$HOME/.local" -xzf -; \
+		else \
+			curl -LsSf "$$go_url" | tar -C "$$HOME/.local" -xzf -; \
+		fi; \
+		export PATH="$$HOME/.local/go/bin:$$PATH"; \
+		go_path_line='export PATH="$$HOME/.local/go/bin:$$PATH"'; \
+		for rc in "$$HOME/.bashrc" "$$HOME/.profile"; do \
+			if [ -f "$$rc" ] && ! grep -qF '/.local/go/bin' "$$rc"; then \
+				echo "" >> "$$rc"; \
+				echo "$$go_path_line" >> "$$rc"; \
+				log_info "added Go to PATH in $$(basename $$rc)"; \
+			fi; \
+		done; \
 		echo "  installed $$(go version)"; \
 	}
 
-# Ensures pnpm is available (installs via corepack if needed)
+# Ensures pnpm is available (installs via standalone script if needed)
 js-dependencies: install-node
 	@$(_shell_log_helpers) \
+	$(_source_node) \
 	command -v pnpm >/dev/null 2>&1 || { \
-		echo "  pnpm not found, installing via corepack"; \
-		log_debug "corepack enable && corepack prepare pnpm@$(PNPM_VERSION) --activate"; \
-		corepack enable && corepack prepare pnpm@$(PNPM_VERSION) --activate; \
+		echo "  pnpm not found, installing"; \
+		if command -v wget >/dev/null 2>&1; then \
+			log_debug "wget -qO- https://get.pnpm.io/install.sh | ENV=\"$$HOME/.bashrc\" SHELL=$$(command -v bash) bash -"; \
+			wget -qO- https://get.pnpm.io/install.sh | ENV="$$HOME/.bashrc" SHELL=$$(command -v bash) bash -; \
+		else \
+			log_debug "curl -fsSL https://get.pnpm.io/install.sh | ENV=\"$$HOME/.bashrc\" SHELL=$$(command -v bash) bash -"; \
+			curl -fsSL https://get.pnpm.io/install.sh | ENV="$$HOME/.bashrc" SHELL=$$(command -v bash) bash -; \
+		fi; \
+		export PATH="$$PNPM_HOME:$$PATH"; \
 	}
 
 # ── UniFFI bindgen tool builds ──────────────────────────────────────────────
@@ -320,6 +395,7 @@ generate-python: _check-repo-owner python-dependencies build-tools-py
 	$(call _log_debug,PY_BINDINGS_DIR = $(PY_BINDINGS_DIR))
 	@mkdir -p $(PY_WHEELS_DIR)
 	@$(_shell_log_helpers) \
+	$(_source_uv) \
 	for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
 		crate_name_hy=$$($(CURDIR)/scripts/ffi-crate-name.sh $$crate_dir); \
@@ -417,6 +493,7 @@ generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-u
 	$(call _log_debug,CGO_LDFLAGS_EXTRA = $(CGO_LDFLAGS_EXTRA))
 	@mkdir -p $(GO_BINDINGS_DIR)
 	@$(_shell_log_helpers) \
+	$(_source_go) \
 	for ffi_lib in $(FFI_LIBS); do \
 		crate_dir=$$(echo $$ffi_lib | tr '_' '-'); \
 		crate_name_us=$$($(CURDIR)/scripts/ffi-crate-name.sh --us $$crate_dir); \
@@ -452,6 +529,8 @@ generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-u
 			-e "s|CGO_LDFLAGS_EXTRA|$(CGO_LDFLAGS_EXTRA)|g" \
 			templates/go/cgo_platform.go \
 		> $(GO_BINDINGS_DIR)/$$pkg/cgo_$(CGO_OS)_$(CGO_ARCH).go; \
+		log_debug "cd $(GO_BINDINGS_DIR)/$$pkg && go mod tidy"; \
+		( cd $(GO_BINDINGS_DIR)/$$pkg && go mod tidy ); \
 	done
 	$(call _log_info,go bindings written to $(GO_BINDINGS_DIR)/)
 
@@ -459,6 +538,7 @@ install-go: generate-go
 	$(call _log_info,generating go.work for local module resolution)
 	$(call _log_debug,GO_BINDINGS_DIR = $(GO_BINDINGS_DIR))
 	@$(_shell_log_helpers) \
+	$(_source_go) \
 	cd $(GO_BINDINGS_DIR) && \
 		if [ ! -f go.work ]; then \
 			log_debug "go work init"; \
@@ -546,9 +626,10 @@ fix-wasm-ts-imports:
 compile-wasm-ts: js-dependencies generate-wasm-ts
 	$(call _log_info,installing JS workspace dependencies)
 	$(call _log_debug,cd $(JS_BINDINGS_DIR) && pnpm install)
-	@( cd $(JS_BINDINGS_DIR) && pnpm install )
+	@$(_source_node) ( cd $(JS_BINDINGS_DIR) && pnpm install )
 	$(call _log_info,compiling typescript)
 	@$(_shell_log_helpers) \
+	$(_source_node) \
 	for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		log_debug "cd $$pkg_dir && pnpm exec tsc"; \
 		( cd "$$pkg_dir" && pnpm exec tsc ); \
@@ -560,6 +641,7 @@ generate-js: compile-wasm-ts
 	$(call _log_debug,NPM_TARBALLS_DIR = $(NPM_TARBALLS_DIR))
 	@mkdir -p $(NPM_TARBALLS_DIR)
 	@$(_shell_log_helpers) \
+	$(_source_node) \
 	for pkg_dir in $(JS_BINDINGS_DIR)/$(NPM_SCOPE)/*/; do \
 		log_info "packing $$(basename $$pkg_dir)"; \
 		log_debug "cd $$pkg_dir && npm pack --pack-destination $(NPM_TARBALLS_DIR)"; \
@@ -571,6 +653,7 @@ generate-js: compile-wasm-ts
 install-js: generate-js
 	$(call _log_debug,JS_PROJECT_DIR = $(JS_PROJECT_DIR))
 	@$(_shell_log_helpers) \
+	$(_source_node) \
 	if [ -n "$(JS_PROJECT_DIR)" ]; then \
 		for tgz in $(NPM_TARBALLS_DIR)/*.tgz; do \
 			log_info "installing $$(basename $$tgz) into $(JS_PROJECT_DIR)"; \
@@ -596,6 +679,7 @@ generate-all: generate-python generate-go generate-js
 test-python: generate-python
 	$(call _log_info,installing py-demo via uv tool)
 	@$(_shell_log_helpers) \
+	$(_source_uv) \
 	with_args=""; \
 	for whl in $(PY_WHEELS_DIR)/*.whl; do \
 		log_info "bundling $$(basename $$whl)"; \
@@ -605,10 +689,11 @@ test-python: generate-python
 	uv tool install --force $(CURDIR)/examples/py-demo $$with_args
 	$(call _log_info,running python smoke test)
 	$(call _log_debug,uniffi-py-demo)
-	@uniffi-py-demo
+	@$(_source_uv) uniffi-py-demo
 
 test-go: install-go fix-example-go-imports
 	@$(_shell_log_helpers) \
+	$(_source_go) \
 	for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 		[ -f "$$pkg_dir/go.mod" ] || continue; \
 		log_info "building $$(basename $$pkg_dir)"; \
@@ -617,6 +702,7 @@ test-go: install-go fix-example-go-imports
 	done
 	$(call _log_info,running go smoke test)
 	@$(_shell_log_helpers) \
+	$(_source_go) \
 	cd $(CURDIR)/examples/go-demo && \
 		cp go.mod go.mod.bak && \
 		for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
@@ -625,6 +711,11 @@ test-go: install-go fix-example-go-imports
 			log_debug "go mod edit -require=$$mod_path@v0.0.0 -replace=$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
 			go mod edit -require="$$mod_path@v0.0.0" -replace="$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
 		done && \
+		go_ver=$$(go version | awk '{print $$3}' | sed 's/go//'); \
+		log_debug "go mod edit -go=$$go_ver"; \
+		go mod edit -go="$$go_ver" && \
+		log_debug "go mod tidy"; \
+		go mod tidy && \
 		log_debug "go run main.go"; \
 		go run main.go; \
 		status=$$?; \
@@ -638,7 +729,7 @@ test-js: fix-example-js-imports
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/js-demo
 	$(call _log_info,running js smoke test)
 	$(call _log_debug,node --test examples/js-demo/main.mjs)
-	@node --test examples/js-demo/main.mjs
+	@$(_source_node) node --test examples/js-demo/main.mjs
 
 
 # Builds the browser-based web-demo with Vite to verify wasm packages work in a frontend context
@@ -648,10 +739,10 @@ test-web: fix-example-js-imports
 	$(MAKE) install-js JS_PROJECT_DIR=$(CURDIR)/examples/web-demo
 	$(call _log_info,installing web-demo dev dependencies)
 	$(call _log_debug,cd $(CURDIR)/examples/web-demo && npm install)
-	@cd $(CURDIR)/examples/web-demo && npm install
+	@$(_source_node) cd $(CURDIR)/examples/web-demo && npm install
 	$(call _log_info,building web-demo (vite build))
 	$(call _log_debug,cd $(CURDIR)/examples/web-demo && npx vite build)
-	@cd $(CURDIR)/examples/web-demo && npx vite build
+	@$(_source_node) cd $(CURDIR)/examples/web-demo && npx vite build
 	$(call _log_info,web-demo build succeeded — run 'cd examples/web-demo && npx vite' to open in browser)
 
 test-all: test-python test-go test-js test-web
