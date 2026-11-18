@@ -126,15 +126,41 @@ jobs:
         env:
           REPO_OWNER: ${{ vars.REPO_OWNER }}
           REPO_NAME: ${{ vars.REPO_NAME }}
+      - name: List downloaded bindings
+        run: |
+          echo "::group::Bindings directory structure"
+          find bindings/go -type f | head -100
+          echo "::endgroup::"
+          echo "::group::go.mod files"
+          for f in bindings/go/*/go.mod; do
+            echo "--- $f ---"
+            cat "$f"
+          done
+          echo "::endgroup::"
       - name: Run smoke test
         run: |
           cd examples/go-demo
+          echo "::group::Adding local module replacements"
           for pkg_dir in ../../bindings/go/*/; do
             [ -f "$pkg_dir/go.mod" ] || continue
             mod_path=$(head -1 "$pkg_dir/go.mod" | awk '{print $2}')
-            go mod edit -require="$mod_path@v0.0.0" -replace="$mod_path=$(cd "$pkg_dir" && pwd)"
+            pkg_abs=$(cd "$pkg_dir" && pwd)
+            echo "  require + replace: $mod_path -> $pkg_abs"
+            go mod edit -require="$mod_path@v0.0.0" -replace="$mod_path=$pkg_abs"
           done
+          echo "::endgroup::"
+          echo "::group::go.mod after edits"
+          cat go.mod
+          echo "::endgroup::"
+          echo "::group::go mod tidy"
+          go mod tidy
+          echo "::endgroup::"
+          echo "::group::go.mod after tidy"
+          cat go.mod
+          echo "::endgroup::"
+          echo "::group::go run main.go"
           go run main.go
+          echo "::endgroup::"
 
   test-js-bindings:
     name: Test JS bindings
