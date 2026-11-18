@@ -549,6 +549,14 @@ install-go: generate-go
 		done && \
 		for d in */go.mod; do \
 			mod_dir=$$(dirname $$d); \
+			for sibling in */go.mod; do \
+				sib_dir=$$(dirname $$sibling); \
+				[ "$$sib_dir" = "$$mod_dir" ] && continue; \
+				sib_mod=$$(head -1 "$$sibling" | awk '{print $$2}'); \
+				sib_abs=$$(cd "$$sib_dir" && pwd); \
+				log_debug "$$mod_dir: go mod edit -replace=$$sib_mod=$$sib_abs"; \
+				( cd "$$mod_dir" && go mod edit -replace="$$sib_mod=$$sib_abs" ); \
+			done; \
 			log_debug "cd $$mod_dir && go mod tidy"; \
 			( cd "$$mod_dir" && go mod tidy ); \
 		done
@@ -700,8 +708,8 @@ test-go: install-go fix-example-go-imports
 	for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 		[ -f "$$pkg_dir/go.mod" ] || continue; \
 		log_info "building $$(basename $$pkg_dir)"; \
-		log_debug "cd $$pkg_dir && go build ./..."; \
-		( cd "$$pkg_dir" && go build ./... ); \
+		log_debug "cd $$pkg_dir && GOWORK=$(GO_BINDINGS_DIR)/go.work go build ./..."; \
+		( cd "$$pkg_dir" && GOWORK=$(GO_BINDINGS_DIR)/go.work go build ./... ); \
 	done
 	$(call _log_info,running go smoke test)
 	@$(_shell_log_helpers) \
@@ -711,8 +719,9 @@ test-go: install-go fix-example-go-imports
 		for pkg_dir in $(GO_BINDINGS_DIR)/*/; do \
 			[ -f "$$pkg_dir/go.mod" ] || continue; \
 			mod_path=$$(head -1 "$$pkg_dir/go.mod" | awk '{print $$2}'); \
-			log_debug "go mod edit -require=$$mod_path@v0.0.0 -replace=$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
-			go mod edit -require="$$mod_path@v0.0.0" -replace="$$mod_path=$$(cd "$$pkg_dir" && pwd)"; \
+			pkg_abs=$$(cd "$$pkg_dir" && pwd); \
+			log_debug "go mod edit -require=$$mod_path@v0.0.0 -replace=$$mod_path=$$pkg_abs"; \
+			go mod edit -require="$$mod_path@v0.0.0" -replace="$$mod_path=$$pkg_abs"; \
 		done && \
 		go_ver=$$(go version | awk '{print $$3}' | sed 's/go//'); \
 		log_debug "go mod edit -go=$$go_ver"; \
