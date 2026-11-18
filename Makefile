@@ -759,7 +759,7 @@ test-web: fix-example-js-imports
 
 # Starts the Vite dev server for the web-demo
 serve-web:
-	@$(_source_node) cd $(CURDIR)/examples/web-demo && npx vite
+	@$(_source_node) cd $(CURDIR)/examples/web-demo && npx vite --host
 
 test-all: test-python test-go test-js test-web
 
