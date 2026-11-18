@@ -75,7 +75,7 @@ WASM_TARGET    ?= wasm32-unknown-unknown
        build-tools-py build-tools-go build-tools-wasm \
        generate-python generate-go generate-wasm-ts generate-all \
        install-python install-go install-js compile-wasm-ts generate-js \
-       test-python test-go test-js test-web test-all \
+       test-python test-go test-js test-web test-all serve-web \
        stamp-uniffi-config _check-repo-owner \
        fix-example-imports fix-example-go-imports fix-example-js-imports \
        clean clean-tools clean-python clean-go clean-js clean-bindings \
@@ -755,7 +755,11 @@ test-web: fix-example-js-imports
 	$(call _log_info,building web-demo (vite build))
 	$(call _log_debug,cd $(CURDIR)/examples/web-demo && npx vite build)
 	@$(_source_node) cd $(CURDIR)/examples/web-demo && npx vite build
-	$(call _log_info,web-demo build succeeded — run 'cd examples/web-demo && npx vite' to open in browser)
+	$(call _log_info,web-demo build succeeded — run 'make serve-web' to open in browser)
+
+# Starts the Vite dev server for the web-demo
+serve-web:
+	@$(_source_node) cd $(CURDIR)/examples/web-demo && npx vite
 
 test-all: test-python test-go test-js test-web
 
