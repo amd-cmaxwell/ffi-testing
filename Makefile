@@ -529,8 +529,6 @@ generate-go: _check-repo-owner install-go-toolchain build build-tools-go stamp-u
 			-e "s|CGO_LDFLAGS_EXTRA|$(CGO_LDFLAGS_EXTRA)|g" \
 			templates/go/cgo_platform.go \
 		> $(GO_BINDINGS_DIR)/$$pkg/cgo_$(CGO_OS)_$(CGO_ARCH).go; \
-		log_debug "cd $(GO_BINDINGS_DIR)/$$pkg && go mod tidy"; \
-		( cd $(GO_BINDINGS_DIR)/$$pkg && go mod tidy ); \
 	done
 	$(call _log_info,go bindings written to $(GO_BINDINGS_DIR)/)
 
@@ -548,6 +546,11 @@ install-go: generate-go
 			mod_dir=$$(dirname $$d); \
 			log_debug "go work use $$mod_dir"; \
 			go work use "$$mod_dir"; \
+		done && \
+		for d in */go.mod; do \
+			mod_dir=$$(dirname $$d); \
+			log_debug "cd $$mod_dir && go mod tidy"; \
+			( cd "$$mod_dir" && go mod tidy ); \
 		done
 	$(call _log_info,go packages ready at $(GO_BINDINGS_DIR)/)
 
