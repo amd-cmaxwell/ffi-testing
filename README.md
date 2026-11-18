@@ -158,13 +158,14 @@ make test-go            # Run Go smoke test (examples/go-demo)
 make test-js            # Run JS smoke test (examples/js-demo)
 make test-web           # Build browser demo with Vite (examples/web-demo)
 make test-all           # All binding tests
+make serve-web          # Start Vite dev server for web-demo
 make clean-web          # Remove web-demo generated files
 ```
 
 The `web-demo` is a browser-based interactive calculator that exercises every math module via WASM. It also runs the same smoke tests as `js-demo` on page load. After `make test-web`, you can open it locally:
 
 ```bash
-cd examples/web-demo && npx vite
+make serve-web
 ```
 
 ## CI / CD
